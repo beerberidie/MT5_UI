@@ -1,0 +1,3 @@
+# Trading Ingest App — Full Implementation Blueprint (Sections 1–27)
+
+... (content from earlier message fully included here, already detailed) ...

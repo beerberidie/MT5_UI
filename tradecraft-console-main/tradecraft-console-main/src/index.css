@@ -1,0 +1,225 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Trading Platform Design System - Professional Dark Theme */
+
+@layer base {
+  :root {
+    /* Global scaling: reduce base font size to ~90% for overall UI scale */
+    font-size: 90%;
+
+    /* Professional Trading Dark Theme */
+    --background: 216 19% 9%;
+    --foreground: 210 15% 92%;
+
+    /* Cards & Panels */
+    --card: 216 19% 12%;
+    --card-foreground: 210 15% 92%;
+    --panel: 216 19% 14%;
+    --panel-alt: 216 19% 16%;
+
+    /* Trading Colors */
+    --trading-success: 142 71% 45%;
+    --trading-success-bg: 142 71% 45% / 0.1;
+    --trading-danger: 0 84% 60%;
+    --trading-danger-bg: 0 84% 60% / 0.1;
+    --trading-warning: 38 92% 50%;
+    --trading-warning-bg: 38 92% 50% / 0.1;
+    --trading-info: 199 89% 48%;
+    --trading-info-bg: 199 89% 48% / 0.1;
+
+    /* Interactive Elements */
+    --primary: 199 89% 48%;
+    --primary-foreground: 210 20% 98%;
+    --primary-hover: 199 89% 42%;
+
+    --secondary: 216 19% 18%;
+    --secondary-foreground: 210 15% 92%;
+    --secondary-hover: 216 19% 22%;
+
+    /* Text Hierarchy */
+    --text-primary: 210 15% 92%;
+    --text-secondary: 210 10% 70%;
+    --text-muted: 210 8% 50%;
+    --text-disabled: 210 8% 35%;
+
+    /* Borders & Inputs */
+    --border: 216 19% 22%;
+    --border-hover: 216 19% 28%;
+    --input: 216 19% 18%;
+    --input-border: 216 19% 24%;
+    --ring: 199 89% 48%;
+
+    /* Status Indicators */
+    --status-online: 142 71% 45%;
+    --status-offline: 0 84% 60%;
+    --status-pending: 38 92% 50%;
+
+    /* Sidebar */
+    --sidebar-background: 216 22% 8%;
+    --sidebar-border: 216 19% 16%;
+    --sidebar-item-hover: 216 19% 14%;
+    --sidebar-item-active: 199 89% 48% / 0.1;
+
+    /* Tables */
+    --table-header: 216 19% 15%;
+    --table-row-hover: 216 19% 16%;
+    --table-row-even: 216 19% 11%;
+
+    /* Elevation */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+    /* Animation */
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Typography */
+    --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+
+    /* Spacing & Layout (scaled ~10%) */
+    --header-height: 3.15rem;
+    --sidebar-width: 14.4rem;
+    --sidebar-collapsed: 3.15rem;
+    --panel-gap: 0.75rem;
+
+    /* Radius */
+    --radius-sm: 0.375rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    background-color: hsl(var(--background));
+    color: hsl(var(--text-primary));
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  }
+
+  /* Trading table numbers - tabular figures for alignment */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  /* Reduce motion for accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Trading UI Components */
+  .trading-panel {
+    @apply bg-card border border-border rounded-lg shadow-sm;
+    background-color: hsl(var(--card));
+    border-color: hsl(var(--border));
+  }
+
+  .trading-header {
+    @apply px-4 py-3 border-b border-border bg-panel;
+    background-color: hsl(var(--panel));
+    border-color: hsl(var(--border));
+  }
+
+  .trading-content {
+    @apply p-4;
+  }
+
+  /* Button Variants */
+  .btn-trading-success {
+    @apply bg-trading-success hover:bg-trading-success/90 text-white font-medium px-4 py-2 rounded-md transition-colors;
+    background-color: hsl(var(--trading-success));
+  }
+
+  .btn-trading-danger {
+    @apply bg-trading-danger hover:bg-trading-danger/90 text-white font-medium px-4 py-2 rounded-md transition-colors;
+    background-color: hsl(var(--trading-danger));
+  }
+
+  .btn-secondary {
+    @apply bg-secondary hover:bg-secondary-hover text-secondary-foreground font-medium px-4 py-2 rounded-md transition-colors;
+    background-color: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+  }
+
+  /* Input Styling */
+  .trading-input {
+    @apply bg-input border border-input-border rounded-md px-3 py-2 text-sm transition-colors;
+    @apply focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent;
+    background-color: hsl(var(--input));
+    border-color: hsl(var(--input-border));
+    color: hsl(var(--text-primary));
+  }
+
+  /* Table Styling */
+  .trading-table {
+    @apply w-full border-collapse;
+  }
+
+  .trading-table th {
+    @apply bg-table-header text-left px-3 py-2 text-sm font-medium text-text-secondary border-b border-border;
+    background-color: hsl(var(--table-header));
+    color: hsl(var(--text-secondary));
+    border-color: hsl(var(--border));
+  }
+
+  .trading-table td {
+    @apply px-3 py-2 text-sm border-b border-border;
+    border-color: hsl(var(--border));
+  }
+
+  .trading-table tbody tr:hover {
+    @apply bg-table-row-hover;
+    background-color: hsl(var(--table-row-hover));
+  }
+
+  .trading-table tbody tr:nth-child(even) {
+    @apply bg-table-row-even;
+    background-color: hsl(var(--table-row-even));
+  }
+
+  /* Status Indicators */
+  .status-online {
+    @apply text-status-online;
+    color: hsl(var(--status-online));
+  }
+
+  .status-offline {
+    @apply text-status-offline;
+    color: hsl(var(--status-offline));
+  }
+
+  .status-pending {
+    @apply text-status-pending;
+    color: hsl(var(--status-pending));
+  }
+
+  /* Trading Value Colors */
+  .value-positive {
+    @apply text-trading-success;
+    color: hsl(var(--trading-success));
+  }
+
+  .value-negative {
+    @apply text-trading-danger;
+    color: hsl(var(--trading-danger));
+  }
+
+  .value-neutral {
+    @apply text-text-secondary;
+    color: hsl(var(--text-secondary));
+  }
+}

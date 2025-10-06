@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "mode": "semi-auto",
+  "evaluation_interval_seconds": 300,
+  "confidence_threshold": 75,
+  "min_rr_ratio": 2.0,
+  "max_concurrent_positions": 3,
+  "max_positions_per_symbol": 1,
+  "default_risk_pct": 0.01,
+  "news_embargo_minutes": 30,
+  "timezone": "Africa/Johannesburg"
+}
+

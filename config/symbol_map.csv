@@ -1,0 +1,4 @@
+canonical,broker_symbol,enabled,min_vol,vol_step,comment
+EURUSD,EURUSD,true,0.01,0.01,Default mapping
+XAUUSD,XAUUSD,true,0.01,0.01,Gold
+

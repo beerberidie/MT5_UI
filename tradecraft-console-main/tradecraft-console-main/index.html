@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trade Agent MT5 - Professional Trading Platform</title>
+    <meta name="description" content="Professional MT5 companion trading workstation with advanced order management, market analysis, and real-time position tracking" />
+    <meta name="author" content="Trade Agent" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <meta property="og:title" content="Trade Agent MT5 - Professional Trading Platform" />
+    <meta property="og:description" content="Professional MT5 companion trading workstation with advanced order management, market analysis, and real-time position tracking" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@lovable_dev" />
+    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+  </head>
+
+  <body class="dark">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Trading Platform Configuration -->
+    <script>
+      window.CONFIG = {
+        API_BASE: 'http://127.0.0.1:5001',
+        REFRESH_INTERVAL: 5000,
+        CONNECTION_TIMEOUT: 10000,
+        MAX_RETRIES: 3
+      };
+
+      // API Key for authenticated endpoints (trading operations)
+      window.AUGMENT_API_KEY = 'AC135782469AD';
+    </script>
+    <script>
+      function getAuthHeaders() {
+        const headers = { 'Content-Type': 'application/json' };
+        if (window.AUGMENT_API_KEY) headers['X-API-Key'] = String(window.AUGMENT_API_KEY);
+        return headers;
+      }
+    </script>
+  </body>
+</html>

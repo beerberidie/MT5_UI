@@ -1,0 +1,170 @@
+Phase Implementation Plan: Trading Dashboard & AI Analysis System
+Phase 0 — UI/UX Scaling (Preparation)
+
+Goal: Reduce the entire UI/UX by ~10% without changing functionality.
+Tasks:
+
+Apply a global scaling factor of 90% to all sections (Dashboard, Analysis, Settings, Activity).
+
+Verify that text, buttons, charts, and tables resize correctly and remain readable.
+
+Ensure Pending Orders display is fully visible after scaling.
+Dependencies: None (can be done immediately).
+Priority: High (prevents display issues for all other phases).
+
+Phase 1 — Analysis Section (Structure & Placeholders)
+
+Goal: Build the framework for the Analysis section and AI module.
+Tasks:
+
+Create Analysis section UI:
+
+Same layout style as Settings section.
+
+Placeholder panels for:
+
+Chart types (line, bars, ticks).
+
+Reports / stats.
+
+Symbol selection.
+
+Add AI button below Analysis:
+
+Label: AI (Artificial Intelligence).
+
+Placeholder dashboard for AI predictions (mirroring MetaTrader 5 view).
+
+Placeholder for priority symbols list:
+
+Vertical list layout below AI button.
+
+For now, display sample symbols.
+Dependencies: Phase 0 completed.
+Priority: High (foundation for AI and analysis functionality).
+
+Phase 2 — Settings Section (Integration & Customization)
+
+Goal: Provide user controls for logins, API integration, and customization options.
+Tasks:
+
+MetaTrader 5 logins:
+
+Display active accounts.
+
+Option to add/remove accounts.
+
+Third-party API placeholders:
+
+Panels for API keys / credentials.
+
+Customization placeholders:
+
+Allow demo configuration of dashboard appearance.
+
+Risk management settings:
+
+Define global risk rules (e.g., max risk %, stop loss/take profit scaling).
+
+Store settings locally or via user profile.
+Dependencies: Phase 0 complete; can run in parallel with Phase 1.
+Priority: High (supports market order auto-fill logic).
+
+Phase 3 — Market Order Enhancements (Auto-fill Stop Loss / Take Profit)
+
+Goal: Improve market order workflow with automated risk-based calculations.
+Tasks:
+
+Implement auto-fill logic for selected symbol:
+
+Read current market price.
+
+Calculate stop loss and take profit based on risk management settings.
+
+Display calculated values in the UI fields (editable by user).
+
+Ensure integration with existing volume, deviation, symbol selection features.
+
+Optional AI/AR logic:
+
+Use AI module to suggest SL/TP based on historical data or trend analysis.
+Dependencies: Phase 2 (risk management settings must exist).
+Priority: High (directly impacts trading workflow).
+
+Phase 4 — Pending Order Enhancements
+
+Goal: Extend auto-fill logic to pending orders.
+Tasks:
+
+Auto-calculate stop loss and take profit for pending order entries.
+
+Option to use AR/AI-assisted analysis for symbol-specific adjustments.
+
+Ensure UI validation prevents overlapping or invalid orders.
+Dependencies: Phase 3 complete (reuses SL/TP logic and risk settings).
+Priority: Medium-High (complements market order workflow).
+
+Phase 5 — Activity Section Debug & Enhancements
+
+Goal: Fix errors and improve display.
+Tasks:
+
+HTTP 422 error:
+
+Investigate API response for Deals/Orders.
+
+Ensure proper request payload and error handling.
+
+Ensure Pending Orders section is fully visible at 90% UI scaling.
+
+Validate open positions, deals, and order activity updates in real time.
+Dependencies: Phase 0 (UI scaling), Phase 1 (Analysis section layout).
+Priority: High (errors affect usability).
+
+Phase 6 — Reports & Views (Chart / Bars / Ticks / Stats)
+
+Goal: Enable full reporting functionality in Analysis & Market Order dashboards.
+Tasks:
+
+Implement charts and views for selected symbols:
+
+Candlestick / OHLC.
+
+Bar chart and tick data.
+
+Statistical summaries.
+
+Generate downloadable / exportable reports for each view.
+
+Integrate with priority symbols and AI section for simultaneous display.
+Dependencies: Phase 1 (Analysis section structured).
+Priority: Medium (enhances analysis capability).
+
+Phase 7 — AI Section (Predictive Dashboard)
+
+Goal: Build predictive features in AI module.
+Tasks:
+
+Pull live symbol data from MetaTrader 5.
+
+Run AI/AR predictions in real time:
+
+Price trend forecasting.
+
+Risk-adjusted suggestions.
+
+Display AI predictions in dashboard format under AI section.
+
+Connect to auto-fill for market/pending orders (optional, advanced).
+Dependencies: Phases 1, 3, 4, 6 (data and calculations available).
+Priority: Medium-High (future enhancement, can start with placeholders).
+
+Implementation Notes / Considerations
+
+Maintain current functionality; avoid breaking existing workflows.
+
+Start with placeholders for AI & customization; full logic can be incrementally implemented.
+
+Ensure all UI elements scale correctly at 90%.
+
+Risk management and auto-fill logic are central for consistency in trading operations.

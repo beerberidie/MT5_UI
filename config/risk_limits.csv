@@ -1,0 +1,7 @@
+key,value,notes
+daily_loss_limit_r,0,Disable guard for now
+max_concurrent_positions,5,
+max_symbol_positions,3,
+sl_atr_mult,1.5,
+tp_atr_mult,2.5,
+

@@ -1,0 +1,21 @@
+{
+  "symbol": "EURUSD",
+  "bestSessions": ["London", "NewYork"],
+  "bestTimeframes": ["M15", "H1", "H4"],
+  "externalDrivers": ["DXY", "US10Y"],
+  "style": {
+    "bias": "trend-follow",
+    "rrTarget": 2.0,
+    "maxRiskPct": 0.01
+  },
+  "management": {
+    "breakevenAfterRR": 1.0,
+    "partialAtRR": 1.5,
+    "trailUsingATR": true,
+    "atrMultiplier": 1.5
+  },
+  "invalidations": [
+    "price_close_lt_ema_slow"
+  ]
+}
+

@@ -1,0 +1,4 @@
+canonical,trade_start_utc,trade_end_utc,block_on_closed,notes
+EURUSD,00:00:00,23:59:59,true,24x5
+XAUUSD,00:00:00,23:59:59,true,24x5
+

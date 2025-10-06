@@ -1,0 +1,175 @@
+// Core API client and helpers for Tradecraft frontend integration with FastAPI backend
+// Uses global window.CONFIG.API_BASE and window.getAuthHeaders()
+
+export type AccountResponse = {
+  balance: number;
+  equity: number;
+  margin: number;
+  margin_free: number;
+  margin_level: number;
+  leverage?: number;
+  currency?: string;
+};
+
+export type PositionResponse = any; // backend returns MT5 fields; map defensively
+
+export type SymbolRow = {
+  canonical?: string;
+  broker_symbol?: string;
+  name?: string;
+  bid?: number;
+  ask?: number;
+  spread?: number;
+};
+
+export async function apiCall<T = any>(endpoint: string, init: RequestInit = {}): Promise<T> {
+  const base = (window as any).CONFIG?.API_BASE || "http://127.0.0.1:5001";
+  const url = `${base}${endpoint}`;
+  const hdrs = (window as any).getAuthHeaders?.() || {};
+  const headers = { ...hdrs, ...(init.headers || {}) } as Record<string, string>;
+  const controller = new AbortController();
+  const timeout = (window as any).CONFIG?.CONNECTION_TIMEOUT || 10000;
+  const tHandle = setTimeout(() => controller.abort(), timeout);
+  try {
+    const res = await fetch(url, { ...init, headers, signal: controller.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return (await res.json()) as T;
+  } finally {
+    clearTimeout(tHandle);
+  }
+}
+
+// ---- Reads ----
+export async function getSymbols(live = true): Promise<{ symbol: string; bid: number; ask: number; spread: number; change: number; changePercent: number }[]> {
+  const rows = await apiCall<SymbolRow[]>(`/api/symbols?live=${live ? "true" : "false"}`);
+  return rows
+    .map((r) => ({
+      symbol: (r.canonical as string) || (r.broker_symbol as string) || (r.name as string) || "",
+      bid: Number(r.bid ?? 0),
+      ask: Number(r.ask ?? 0),
+      spread: Number(r.spread ?? 0),
+      change: 0,
+      changePercent: 0,
+    }))
+    .filter((r) => r.symbol);
+}
+
+export async function getPrioritySymbols(limit = 5): Promise<{ symbol: string; bid: number; ask: number; spread: number; change: number; changePercent: number }[]> {
+  const rows = await apiCall<any[]>(`/api/symbols/priority?limit=${limit}`);
+  return (rows || [])
+    .map((r) => ({
+      symbol: (r.symbol as string) || (r.canonical as string) || (r.name as string) || "",
+      bid: Number(r.bid ?? 0),
+      ask: Number(r.ask ?? 0),
+      spread: Number(r.spread ?? 0),
+      change: Number(r.change ?? 0),
+      changePercent: Number(r.changePercent ?? r.win_rate ?? 0),
+    }))
+    .filter((r) => r.symbol);
+}
+
+export async function getAccount(): Promise<{
+  balance: number; equity: number; margin: number; freeMargin: number; marginLevel: number; currency?: string;
+}> {
+  const a = await apiCall<AccountResponse>(`/api/account`);
+  return {
+    balance: Number(a.balance || 0),
+    equity: Number(a.equity || 0),
+    margin: Number(a.margin || 0),
+    freeMargin: Number(a.margin_free || 0),
+    marginLevel: Number(a.margin_level || 0),
+    currency: a.currency,
+  };
+}
+
+export async function getPositions(): Promise<{
+  ticket?: number; symbol?: string; type?: string | number; volume?: number; profit?: number;
+}[]> {
+  const rows = await apiCall<PositionResponse[]>(`/api/positions`);
+  return (rows || []).map((p: any) => ({
+    ticket: p.ticket ?? p.position ?? undefined,
+    symbol: p.symbol,
+    type: p.type,
+    volume: Number(p.volume || 0),
+    profit: Number(p.profit || 0),
+  }));
+}
+
+// ---- Reads: history & activity ----
+export async function getHistoricalBars(opts: { symbol: string; timeframe: string; date_from?: string; date_to?: string; count?: number; }) {
+  const q = new URLSearchParams();
+  q.set('symbol', opts.symbol);
+  q.set('timeframe', opts.timeframe);
+  if (opts.date_from) q.set('date_from', opts.date_from);
+  if (opts.date_to) q.set('date_to', opts.date_to);
+  if (opts.count != null) q.set('count', String(opts.count));
+  return apiCall<any[]>(`/api/history/bars?${q.toString()}`);
+}
+
+export async function getDeals(opts: { date_from?: string; date_to?: string; symbol?: string; }) {
+  const q = new URLSearchParams();
+  if (opts.date_from) q.set('date_from', opts.date_from);
+  if (opts.date_to) q.set('date_to', opts.date_to);
+  if (opts.symbol) q.set('symbol', opts.symbol);
+  const res = await apiCall<any>(`/api/history/deals?${q.toString()}`);
+  return Array.isArray(res) ? res : (res?.deals ?? []);
+}
+
+export async function getOrdersHistory(opts: { date_from?: string; date_to?: string; symbol?: string; }) {
+  const q = new URLSearchParams();
+  if (opts.date_from) q.set('date_from', opts.date_from);
+  if (opts.date_to) q.set('date_to', opts.date_to);
+  if (opts.symbol) q.set('symbol', opts.symbol);
+  const res = await apiCall<any>(`/api/history/orders?${q.toString()}`);
+  return Array.isArray(res) ? res : (res?.orders ?? res?.data ?? []);
+}
+
+// Pending orders
+export async function getPendingOrders() {
+  return apiCall<any[]>(`/api/orders`);
+}
+export async function createPendingOrder(payload: any) {
+  return apiCall(`/api/orders/pending`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+export async function cancelPendingOrder(ticket: number | string) {
+  return apiCall(`/api/orders/${ticket}`, { method: 'DELETE' });
+}
+
+export async function modifyPendingOrder(ticket: number | string, payload: { price?: number; sl?: number; tp?: number; expiration?: number; }) {
+  return apiCall(`/api/orders/${ticket}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+
+// ---- Writes ----
+export async function postOrder(payload: {
+  canonical: string;
+  side: 'buy' | 'sell';
+  volume: number;
+  deviation?: number;
+  sl?: number | null;
+  tp?: number | null;
+  comment?: string;
+  magic?: number;
+}): Promise<any> {
+  return apiCall(`/api/order`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function closePosition(ticket: number | string): Promise<any> {
+  return apiCall(`/api/positions/${ticket}/close`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+

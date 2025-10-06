@@ -1,0 +1,15 @@
+# Production dependencies for MT5 Trading Workstation
+fastapi==0.111.0
+uvicorn==0.30.1
+pydantic==2.7.4
+python-dotenv==1.0.1
+pandas==2.2.2
+MetaTrader5==5.0.45
+sse-starlette==1.6.5
+watchdog==4.0.1
+python-multipart==0.0.20
+slowapi==0.1.9
+redis==5.0.1
+
+# Security note: numpy<2 required for MetaTrader5 5.0.45 compatibility
+numpy==1.26.4
