@@ -11,5 +11,11 @@ python-multipart==0.0.20
 slowapi==0.1.9
 redis==5.0.1
 
+# AI Trading dependencies
+pandas-ta>=0.3.14
+schedule==1.2.0
+jsonschema==4.19.0
+pytz>=2024.1
+
 # Security note: numpy<2 required for MetaTrader5 5.0.45 compatibility
 numpy==1.26.4

@@ -16,6 +16,7 @@ from .csv_io import append_csv, utcnow_iso, read_csv_rows
 from .mt5_client import MT5Client
 from .models import OrderRequest, PendingOrderRequest, HistoricalBarsRequest, HistoricalTicksRequest, TradingHistoryRequest
 from .risk import risk_limits, symbol_map, sessions_map
+from . import ai_routes
 
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -40,6 +41,9 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "X-API-Key", "Authorization"]
 )
+
+# Mount AI routes
+app.include_router(ai_routes.router)
 
 mt5 = MT5Client()
 
