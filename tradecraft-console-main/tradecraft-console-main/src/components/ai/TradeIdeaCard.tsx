@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  CheckCircle, 
-  XCircle, 
+import {
+  TrendingUp,
+  TrendingDown,
+  CheckCircle,
+  XCircle,
   Clock,
   Target,
   Shield,
-  Activity
+  Activity,
+  Eye
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import type { TradeIdea } from '@/lib/ai-types';
@@ -16,12 +17,19 @@ import { getConfidenceColor, getActionLabel, getActionColor } from '@/lib/ai-typ
 
 interface TradeIdeaCardProps {
   tradeIdea: TradeIdea;
+  onReview?: (tradeIdea: TradeIdea) => void;
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
 }
 
-const TradeIdeaCard: React.FC<TradeIdeaCardProps> = ({ tradeIdea, onApprove, onReject }) => {
+const TradeIdeaCard: React.FC<TradeIdeaCardProps> = ({ tradeIdea, onReview, onApprove, onReject }) => {
   const [processing, setProcessing] = useState(false);
+
+  const handleReview = () => {
+    if (onReview) {
+      onReview(tradeIdea);
+    }
+  };
 
   const handleApprove = async () => {
     if (!onApprove) return;
@@ -220,32 +228,16 @@ const TradeIdeaCard: React.FC<TradeIdeaCardProps> = ({ tradeIdea, onApprove, onR
         </div>
 
         {/* Action Buttons */}
-        {tradeIdea.status === 'pending_approval' && (
+        {(tradeIdea.status === 'pending_approval' || tradeIdea.status === 'approved') && (
           <div className="flex gap-3 pt-3 border-t border-border">
             <Button
-              onClick={handleApprove}
-              disabled={processing}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white gap-2"
-            >
-              <CheckCircle className="w-4 h-4" />
-              Approve & Execute
-            </Button>
-            <Button
-              onClick={handleReject}
-              disabled={processing}
-              variant="destructive"
+              onClick={handleReview}
               className="flex-1 gap-2"
+              variant="default"
             >
-              <XCircle className="w-4 h-4" />
-              Reject
+              <Eye className="w-4 h-4" />
+              Review & Execute
             </Button>
-          </div>
-        )}
-
-        {tradeIdea.status === 'approved' && (
-          <div className="flex items-center justify-center gap-2 p-3 bg-green-500/10 border border-green-500/30 rounded text-green-400">
-            <CheckCircle className="w-4 h-4" />
-            <span className="text-sm font-medium">Approved - Awaiting Execution</span>
           </div>
         )}
 

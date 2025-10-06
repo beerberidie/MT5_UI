@@ -10,13 +10,18 @@ import {
 } from 'lucide-react';
 import AIControlPanel from '@/components/ai/AIControlPanel';
 import TradeIdeaCard from '@/components/ai/TradeIdeaCard';
+import TradeIdeaApprovalDialog from '@/components/ai/TradeIdeaApprovalDialog';
 import StrategyEditor from '@/components/ai/StrategyEditor';
 import {
   getSymbols,
   evaluateSymbol,
   enableAI,
   disableAI,
-  getAIDecisions
+  getAIDecisions,
+  approveTradeIdea,
+  rejectTradeIdea,
+  executeTradeIdea,
+  getAccount
 } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import type { TradeIdea, AIDecision } from '@/lib/ai-types';
@@ -30,10 +35,25 @@ const AI: React.FC = () => {
   const [evaluating, setEvaluating] = useState(false);
   const [enablingSymbol, setEnablingSymbol] = useState<string | null>(null);
 
+  // Dialog state
+  const [selectedTradeIdea, setSelectedTradeIdea] = useState<TradeIdea | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [accountBalance, setAccountBalance] = useState<number>(10000);
+
   useEffect(() => {
     loadSymbols();
     loadDecisions();
+    loadAccountBalance();
   }, []);
+
+  async function loadAccountBalance() {
+    try {
+      const account = await getAccount();
+      setAccountBalance(account.balance || 10000);
+    } catch (error) {
+      console.error('Failed to load account balance:', error);
+    }
+  }
 
   async function loadSymbols() {
     try {
@@ -151,24 +171,49 @@ const AI: React.FC = () => {
     }
   }
 
-  function handleApproveTradeIdea(id: string) {
-    // TODO: Implement trade idea approval
-    console.log('Approve trade idea:', id);
-    toast({
-      title: 'Feature Coming Soon',
-      description: 'Trade idea approval will be implemented in the next phase',
-    });
+  function handleReviewTradeIdea(tradeIdea: TradeIdea) {
+    setSelectedTradeIdea(tradeIdea);
+    setDialogOpen(true);
   }
 
-  function handleRejectTradeIdea(id: string) {
-    // TODO: Implement trade idea rejection
-    console.log('Reject trade idea:', id);
-    setTradeIdeas(prev => prev.filter(idea => idea.id !== id));
-    toast({
-      title: 'Trade Idea Rejected',
-      description: 'Trade idea has been rejected',
-      variant: 'destructive',
-    });
+  async function handleApproveTradeIdea(id: string) {
+    try {
+      await approveTradeIdea(id);
+      // Update local state
+      setTradeIdeas(prev => prev.map(idea =>
+        idea.id === id ? { ...idea, status: 'approved' as const } : idea
+      ));
+      // Refresh account balance
+      loadAccountBalance();
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to approve trade idea');
+    }
+  }
+
+  async function handleRejectTradeIdea(id: string, reason: string) {
+    try {
+      await rejectTradeIdea(id, reason);
+      // Update local state
+      setTradeIdeas(prev => prev.map(idea =>
+        idea.id === id ? { ...idea, status: 'rejected' as const } : idea
+      ));
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to reject trade idea');
+    }
+  }
+
+  async function handleExecuteTradeIdea(id: string, volume: number) {
+    try {
+      await executeTradeIdea(id, accountBalance, volume);
+      // Update local state
+      setTradeIdeas(prev => prev.map(idea =>
+        idea.id === id ? { ...idea, status: 'executed' as const } : idea
+      ));
+      // Refresh account balance
+      loadAccountBalance();
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to execute trade idea');
+    }
   }
 
   return (
@@ -292,8 +337,7 @@ const AI: React.FC = () => {
                         <TradeIdeaCard
                           key={idea.id}
                           tradeIdea={idea}
-                          onApprove={handleApproveTradeIdea}
-                          onReject={handleRejectTradeIdea}
+                          onReview={handleReviewTradeIdea}
                         />
                       ))}
                     </div>
@@ -417,6 +461,20 @@ const AI: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Trade Idea Approval Dialog */}
+      <TradeIdeaApprovalDialog
+        tradeIdea={selectedTradeIdea}
+        open={dialogOpen}
+        accountBalance={accountBalance}
+        onClose={() => {
+          setDialogOpen(false);
+          setSelectedTradeIdea(null);
+        }}
+        onApprove={handleApproveTradeIdea}
+        onReject={handleRejectTradeIdea}
+        onExecute={handleExecuteTradeIdea}
+      />
     </div>
   );
 };

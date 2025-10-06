@@ -266,3 +266,52 @@ export async function saveStrategy(symbol: string, strategy: any): Promise<any> 
   });
 }
 
+// ---- Trade Idea Execution ----
+
+export async function getPendingTradeIdeas(): Promise<any[]> {
+  const data = await apiCall<any[]>(`/api/ai/trade-ideas/pending`);
+  // Defensive check: ensure data is an array
+  if (!Array.isArray(data)) {
+    console.error('getPendingTradeIdeas: API returned non-array data:', data);
+    return [];
+  }
+  return data;
+}
+
+export async function getTradeIdeaHistory(): Promise<any[]> {
+  const data = await apiCall<any[]>(`/api/ai/trade-ideas/history`);
+  // Defensive check: ensure data is an array
+  if (!Array.isArray(data)) {
+    console.error('getTradeIdeaHistory: API returned non-array data:', data);
+    return [];
+  }
+  return data;
+}
+
+export async function approveTradeIdea(ideaId: string): Promise<any> {
+  return apiCall(`/api/ai/trade-ideas/${ideaId}/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+export async function rejectTradeIdea(ideaId: string, reason: string): Promise<any> {
+  return apiCall(`/api/ai/trade-ideas/${ideaId}/reject`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export async function executeTradeIdea(ideaId: string, accountBalance: number, volume?: number): Promise<any> {
+  const body: any = { account_balance: accountBalance };
+  if (volume !== undefined) {
+    body.volume = volume;
+  }
+  return apiCall(`/api/ai/trade-ideas/${ideaId}/execute`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
