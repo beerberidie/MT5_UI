@@ -311,13 +311,13 @@ async def get_strategy(
 ):
     """
     Get strategy configuration for a symbol.
-    
+
     Args:
         symbol: Trading symbol
         timeframe: Timeframe for strategy
-        
+
     Returns:
-        Strategy configuration
+        Strategy configuration or 404 with helpful message
     """
     try:
         rules = load_rules(
@@ -325,14 +325,20 @@ async def get_strategy(
             symbol,
             timeframe
         )
-        
+
         if rules:
-            return {
-                "success": True,
-                "strategy": rules.__dict__
-            }
+            # Return the strategy object directly (not wrapped)
+            return rules.__dict__
         else:
-            raise HTTPException(status_code=404, detail=f"No strategy found for {symbol} {timeframe}")
+            # Return 404 with helpful error message
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "STRATEGY_NOT_FOUND",
+                    "message": f"No strategy found for {symbol} {timeframe}",
+                    "hint": f"Create a strategy file at config/ai/strategies/{symbol}_{timeframe}.json"
+                }
+            )
     except HTTPException:
         raise
     except Exception as e:

@@ -14,6 +14,7 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({ symbol, onSave }) => {
   const [strategy, setStrategy] = useState<EMNRStrategy | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadStrategy();
@@ -21,16 +22,25 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({ symbol, onSave }) => {
 
   async function loadStrategy() {
     setLoading(true);
+    setError(null);
     try {
       const data = await getStrategy(symbol);
       setStrategy(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load strategy:', error);
-      toast({
-        title: 'Error',
-        description: `Failed to load strategy for ${symbol}`,
-        variant: 'destructive',
-      });
+
+      // Check if it's a 404 error (strategy not found)
+      if (error.message && error.message.includes('404')) {
+        setError(`No strategy found for ${symbol}. Create one to get started.`);
+        setStrategy(null);
+      } else {
+        setError(`Failed to load strategy: ${error.message || 'Unknown error'}`);
+        toast({
+          title: 'Error',
+          description: `Failed to load strategy for ${symbol}`,
+          variant: 'destructive',
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -74,15 +84,33 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({ symbol, onSave }) => {
   if (!strategy) {
     return (
       <div className="trading-panel">
-        <div className="trading-header">
+        <div className="trading-header flex items-center justify-between">
           <h3 className="font-medium">Strategy Editor - {symbol}</h3>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={loadStrategy}
+            disabled={loading}
+            className="gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Retry
+          </Button>
         </div>
         <div className="trading-content">
           <div className="flex flex-col items-center justify-center py-8 text-center">
-            <AlertCircle className="w-12 h-12 text-text-muted opacity-50 mb-3" />
-            <p className="text-sm text-text-muted">No strategy found for {symbol}</p>
-            <p className="text-xs text-text-muted mt-2">
-              Create a strategy file at: config/ai/strategies/{symbol}_H1.json
+            <AlertCircle className="w-12 h-12 text-yellow-500 opacity-50 mb-3" />
+            <p className="text-sm text-text-primary font-medium mb-2">
+              {error || `No strategy found for ${symbol}`}
+            </p>
+            <p className="text-xs text-text-muted mt-2 max-w-md">
+              To create a strategy for {symbol}, add a file at:<br />
+              <code className="text-xs bg-panel-dark px-2 py-1 rounded mt-1 inline-block">
+                config/ai/strategies/{symbol}_H1.json
+              </code>
+            </p>
+            <p className="text-xs text-text-muted mt-3">
+              You can copy the EURUSD_H1.json file as a template and modify the parameters.
             </p>
           </div>
         </div>
@@ -121,20 +149,24 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({ symbol, onSave }) => {
         {/* Basic Info */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-xs text-text-muted mb-1 block">Symbol</label>
+            <label htmlFor="strategy-symbol" className="text-xs text-text-muted mb-1 block">Symbol</label>
             <input
+              id="strategy-symbol"
               type="text"
               value={strategy.symbol}
               disabled
+              aria-label="Strategy symbol"
               className="w-full px-3 py-2 bg-panel-dark border border-border rounded text-sm text-text-primary"
             />
           </div>
           <div>
-            <label className="text-xs text-text-muted mb-1 block">Timeframe</label>
+            <label htmlFor="strategy-timeframe" className="text-xs text-text-muted mb-1 block">Timeframe</label>
             <input
+              id="strategy-timeframe"
               type="text"
               value={strategy.timeframe}
               disabled
+              aria-label="Strategy timeframe"
               className="w-full px-3 py-2 bg-panel-dark border border-border rounded text-sm text-text-primary"
             />
           </div>
@@ -283,13 +315,15 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({ symbol, onSave }) => {
           <h4 className="text-sm font-medium text-text-secondary mb-3">Strategy Settings</h4>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs text-text-muted mb-1 block">Direction</label>
+              <label htmlFor="strategy-direction" className="text-xs text-text-muted mb-1 block">Direction</label>
               <select
+                id="strategy-direction"
                 value={strategy.strategy.direction}
                 onChange={(e) => setStrategy({
                   ...strategy,
                   strategy: { ...strategy.strategy, direction: e.target.value as any }
                 })}
+                aria-label="Trading direction"
                 className="w-full px-3 py-2 bg-panel-dark border border-border rounded text-sm text-text-primary"
               >
                 <option value="long">Long Only</option>
@@ -298,8 +332,9 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({ symbol, onSave }) => {
               </select>
             </div>
             <div>
-              <label className="text-xs text-text-muted mb-1 block">Min RR Ratio</label>
+              <label htmlFor="strategy-min-rr" className="text-xs text-text-muted mb-1 block">Min RR Ratio</label>
               <input
+                id="strategy-min-rr"
                 type="number"
                 step="0.1"
                 value={strategy.strategy.min_rr}
@@ -307,6 +342,7 @@ const StrategyEditor: React.FC<StrategyEditorProps> = ({ symbol, onSave }) => {
                   ...strategy,
                   strategy: { ...strategy.strategy, min_rr: parseFloat(e.target.value) }
                 })}
+                aria-label="Minimum risk-reward ratio"
                 className="w-full px-3 py-2 bg-panel-dark border border-border rounded text-sm text-text-primary"
               />
             </div>
