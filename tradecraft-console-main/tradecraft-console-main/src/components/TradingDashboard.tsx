@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { getSymbols, getPrioritySymbols, getAccount, getPositions, postOrder, getHistoricalBars, getDeals, getOrdersHistory, getPendingOrders, createPendingOrder, cancelPendingOrder, modifyPendingOrder, closePosition } from '@/lib/api';
 import ErrorBoundary from './ErrorBoundary';
+import AIStatusIndicator from './ai/AIStatusIndicator';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -977,6 +978,9 @@ const TradingDashboard: React.FC = () => {
               </button>
             </div>
           </nav>
+
+          {/* AI Status Indicator */}
+          {!sidebarCollapsed && <AIStatusIndicator />}
 
           {/* Priority Symbols */}
           {!sidebarCollapsed && (

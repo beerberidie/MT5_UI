@@ -173,3 +173,60 @@ export async function closePosition(ticket: number | string): Promise<any> {
   });
 }
 
+// ---- AI Trading API ----
+
+export async function getAIStatus(): Promise<any> {
+  return apiCall(`/api/ai/status`);
+}
+
+export async function evaluateSymbol(symbol: string, timeframe: string = 'H1', force: boolean = false): Promise<any> {
+  return apiCall(`/api/ai/evaluate/${symbol}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ timeframe, force }),
+  });
+}
+
+export async function enableAI(symbol: string, timeframe: string = 'H1', autoExecute: boolean = false): Promise<any> {
+  return apiCall(`/api/ai/enable/${symbol}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ timeframe, auto_execute: autoExecute }),
+  });
+}
+
+export async function disableAI(symbol: string): Promise<any> {
+  return apiCall(`/api/ai/disable/${symbol}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+export async function triggerKillSwitch(reason: string): Promise<any> {
+  return apiCall(`/api/ai/kill-switch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export async function getAIDecisions(limit: number = 50): Promise<any[]> {
+  return apiCall(`/api/ai/decisions?limit=${limit}`);
+}
+
+export async function getStrategies(): Promise<any[]> {
+  return apiCall(`/api/ai/strategies`);
+}
+
+export async function getStrategy(symbol: string): Promise<any> {
+  return apiCall(`/api/ai/strategies/${symbol}`);
+}
+
+export async function saveStrategy(symbol: string, strategy: any): Promise<any> {
+  return apiCall(`/api/ai/strategies/${symbol}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(strategy),
+  });
+}
+
