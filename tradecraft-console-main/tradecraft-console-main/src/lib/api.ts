@@ -32,7 +32,22 @@ export async function apiCall<T = any>(endpoint: string, init: RequestInit = {})
   const tHandle = setTimeout(() => controller.abort(), timeout);
   try {
     const res = await fetch(url, { ...init, headers, signal: controller.signal });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      // Try to get error message from response
+      let errorMessage = `HTTP ${res.status}`;
+      try {
+        const errorData = await res.json();
+        if (errorData.detail) {
+          errorMessage = typeof errorData.detail === 'string'
+            ? errorData.detail
+            : JSON.stringify(errorData.detail);
+        }
+      } catch {
+        // If JSON parsing fails, use status text
+        errorMessage = `HTTP ${res.status}: ${res.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
     return (await res.json()) as T;
   } finally {
     clearTimeout(tHandle);
@@ -42,6 +57,11 @@ export async function apiCall<T = any>(endpoint: string, init: RequestInit = {})
 // ---- Reads ----
 export async function getSymbols(live = true): Promise<{ symbol: string; bid: number; ask: number; spread: number; change: number; changePercent: number }[]> {
   const rows = await apiCall<SymbolRow[]>(`/api/symbols?live=${live ? "true" : "false"}`);
+  // Defensive check: ensure rows is an array
+  if (!Array.isArray(rows)) {
+    console.error('getSymbols: API returned non-array data:', rows);
+    return [];
+  }
   return rows
     .map((r) => ({
       symbol: (r.canonical as string) || (r.broker_symbol as string) || (r.name as string) || "",
@@ -56,7 +76,12 @@ export async function getSymbols(live = true): Promise<{ symbol: string; bid: nu
 
 export async function getPrioritySymbols(limit = 5): Promise<{ symbol: string; bid: number; ask: number; spread: number; change: number; changePercent: number }[]> {
   const rows = await apiCall<any[]>(`/api/symbols/priority?limit=${limit}`);
-  return (rows || [])
+  // Defensive check: ensure rows is an array
+  if (!Array.isArray(rows)) {
+    console.error('getPrioritySymbols: API returned non-array data:', rows);
+    return [];
+  }
+  return rows
     .map((r) => ({
       symbol: (r.symbol as string) || (r.canonical as string) || (r.name as string) || "",
       bid: Number(r.bid ?? 0),
@@ -86,7 +111,12 @@ export async function getPositions(): Promise<{
   ticket?: number; symbol?: string; type?: string | number; volume?: number; profit?: number;
 }[]> {
   const rows = await apiCall<PositionResponse[]>(`/api/positions`);
-  return (rows || []).map((p: any) => ({
+  // Defensive check: ensure rows is an array
+  if (!Array.isArray(rows)) {
+    console.error('getPositions: API returned non-array data:', rows);
+    return [];
+  }
+  return rows.map((p: any) => ({
     ticket: p.ticket ?? p.position ?? undefined,
     symbol: p.symbol,
     type: p.type,
@@ -211,7 +241,13 @@ export async function triggerKillSwitch(reason: string): Promise<any> {
 }
 
 export async function getAIDecisions(limit: number = 50): Promise<any[]> {
-  return apiCall(`/api/ai/decisions?limit=${limit}`);
+  const data = await apiCall<any[]>(`/api/ai/decisions?limit=${limit}`);
+  // Defensive check: ensure data is an array
+  if (!Array.isArray(data)) {
+    console.error('getAIDecisions: API returned non-array data:', data);
+    return [];
+  }
+  return data;
 }
 
 export async function getStrategies(): Promise<any[]> {

@@ -38,6 +38,12 @@ const AI: React.FC = () => {
   async function loadSymbols() {
     try {
       const data = await getSymbols(false);
+      // Defensive check: ensure data is an array before calling .map()
+      if (!Array.isArray(data)) {
+        console.error('getSymbols returned non-array data:', data);
+        setSymbols([]);
+        return;
+      }
       const symbolNames = data.map(s => s.symbol).filter(Boolean);
       setSymbols(symbolNames);
       if (symbolNames.length > 0 && !selectedSymbol) {
@@ -45,15 +51,28 @@ const AI: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to load symbols:', error);
+      setSymbols([]); // Ensure symbols is always an array
+      toast({
+        title: 'Failed to Load Symbols',
+        description: 'Could not load symbol list. Please refresh the page.',
+        variant: 'destructive',
+      });
     }
   }
 
   async function loadDecisions() {
     try {
       const data = await getAIDecisions(50);
-      setDecisions(data || []);
+      // Defensive check: ensure data is an array
+      if (!Array.isArray(data)) {
+        console.error('getAIDecisions returned non-array data:', data);
+        setDecisions([]);
+        return;
+      }
+      setDecisions(data);
     } catch (error) {
       console.error('Failed to load decisions:', error);
+      setDecisions([]); // Ensure decisions is always an array
     }
   }
 
