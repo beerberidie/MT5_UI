@@ -76,8 +76,10 @@ def load_profile(profiles_dir: Path, symbol: str) -> Optional[SymbolProfile]:
         >>> profile.symbol if profile else None
         'EURUSD'
     """
-    profile_path = profiles_dir / f"{symbol}.json"
-    
+    # Convert to Path if string
+    profiles_dir_path = Path(profiles_dir) if isinstance(profiles_dir, str) else profiles_dir
+    profile_path = profiles_dir_path / f"{symbol}.json"
+
     if not profile_path.exists():
         return None
     
@@ -101,9 +103,11 @@ def save_profile(profiles_dir: Path, profile: SymbolProfile) -> bool:
     Returns:
         True if successful, False otherwise
     """
-    profiles_dir.mkdir(parents=True, exist_ok=True)
-    profile_path = profiles_dir / f"{profile.symbol}.json"
-    
+    # Convert to Path if string
+    profiles_dir_path = Path(profiles_dir) if isinstance(profiles_dir, str) else profiles_dir
+    profiles_dir_path.mkdir(parents=True, exist_ok=True)
+    profile_path = profiles_dir_path / f"{profile.symbol}.json"
+
     try:
         with open(profile_path, 'w') as f:
             json.dump(profile.to_dict(), f, indent=2)

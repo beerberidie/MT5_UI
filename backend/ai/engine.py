@@ -176,6 +176,7 @@ class AIEngine:
                 symbol=symbol,
                 timeframe=timeframe,
                 confidence=confidence,
+                action=execution_plan["action"],
                 direction=direction,
                 entry_price=current_price,
                 stop_loss=sl_price,
@@ -185,7 +186,7 @@ class AIEngine:
                 emnr_flags=EMNRFlags(**emnr_flags),
                 indicators=IndicatorValues(**{k: v for k, v in indicators.items() if k in IndicatorValues.__annotations__}),
                 execution_plan=ExecutionPlan(**execution_plan),
-                status="pending"
+                status="pending_approval"
             )
             
             # Log decision
@@ -213,32 +214,43 @@ class AIEngine:
     def _fetch_bars(self, symbol: str, timeframe: str, count: int = 100) -> Optional[List[Dict]]:
         """Fetch historical bars from MT5."""
         try:
-            # Map timeframe string to MT5 timeframe constant
-            timeframe_map = {
-                "M1": 1, "M5": 5, "M15": 15, "M30": 30,
-                "H1": 60, "H4": 240, "D1": 1440
-            }
-            tf_minutes = timeframe_map.get(timeframe, 60)
-            
+            # Import MT5 timeframe constants
+            try:
+                import MetaTrader5 as mt5
+                # Map timeframe string to MT5 timeframe constant
+                timeframe_map = {
+                    "M1": mt5.TIMEFRAME_M1,
+                    "M5": mt5.TIMEFRAME_M5,
+                    "M15": mt5.TIMEFRAME_M15,
+                    "M30": mt5.TIMEFRAME_M30,
+                    "H1": mt5.TIMEFRAME_H1,
+                    "H4": mt5.TIMEFRAME_H4,
+                    "D1": mt5.TIMEFRAME_D1
+                }
+                tf_constant = timeframe_map.get(timeframe, mt5.TIMEFRAME_H1)
+            except ImportError:
+                logger.error("MetaTrader5 module not available")
+                return None
+
             # Fetch bars using MT5Client
-            bars_data = self.mt5_client.get_bars(symbol, tf_minutes, count)
+            bars_data = self.mt5_client.copy_rates_from_pos(symbol, tf_constant, 0, count)
             if not bars_data:
                 return None
-            
+
             # Convert to list of dicts with OHLC structure
             bars = []
             for bar in bars_data:
                 bars.append({
-                    "time": bar.get("time", 0),
-                    "open": bar.get("open", 0.0),
-                    "high": bar.get("high", 0.0),
-                    "low": bar.get("low", 0.0),
-                    "close": bar.get("close", 0.0),
-                    "volume": bar.get("tick_volume", 0)
+                    "time": bar.get("time", 0) if isinstance(bar, dict) else bar[0],
+                    "open": bar.get("open", 0.0) if isinstance(bar, dict) else bar[1],
+                    "high": bar.get("high", 0.0) if isinstance(bar, dict) else bar[2],
+                    "low": bar.get("low", 0.0) if isinstance(bar, dict) else bar[3],
+                    "close": bar.get("close", 0.0) if isinstance(bar, dict) else bar[4],
+                    "volume": bar.get("tick_volume", 0) if isinstance(bar, dict) else bar[5]
                 })
-            
+
             return bars
-            
+
         except Exception as e:
             logger.error(f"Error fetching bars for {symbol}: {e}")
             return None

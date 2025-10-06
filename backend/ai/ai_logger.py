@@ -86,30 +86,32 @@ def get_decisions(
 ) -> List[Dict[str, Any]]:
     """
     Retrieve recent AI decisions from log.
-    
+
     Args:
         log_path: Path to CSV log file
         symbol: Optional symbol filter
         limit: Maximum number of decisions to return
-    
+
     Returns:
         List of decision dictionaries (most recent first)
     """
-    if not log_path.exists():
+    # Convert to Path if string
+    log_path_obj = Path(log_path) if isinstance(log_path, str) else log_path
+    if not log_path_obj.exists():
         return []
     
     try:
-        with open(log_path, 'r') as f:
+        with open(log_path_obj, 'r') as f:
             reader = csv.DictReader(f)
             decisions = list(reader)
-        
+
         # Filter by symbol if specified
         if symbol:
             decisions = [d for d in decisions if d.get('symbol') == symbol]
-        
+
         # Return most recent first
         decisions.reverse()
-        
+
         return decisions[:limit]
     except (IOError, csv.Error) as e:
         print(f"Error reading decisions: {e}")

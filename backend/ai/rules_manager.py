@@ -72,11 +72,13 @@ def load_rules(rules_dir: Path, symbol: str, timeframe: str = "H1") -> Optional[
         >>> rules.symbol if rules else None
         'EURUSD'
     """
-    rules_path = rules_dir / f"{symbol}_{timeframe}.json"
-    
+    # Convert to Path if string
+    rules_dir_path = Path(rules_dir) if isinstance(rules_dir, str) else rules_dir
+    rules_path = rules_dir_path / f"{symbol}_{timeframe}.json"
+
     if not rules_path.exists():
         return None
-    
+
     try:
         with open(rules_path, 'r') as f:
             data = json.load(f)
@@ -89,18 +91,20 @@ def load_rules(rules_dir: Path, symbol: str, timeframe: str = "H1") -> Optional[
 def save_rules(rules_dir: Path, symbol: str, rules: EMNRRules) -> bool:
     """
     Save EMNR rules to JSON file.
-    
+
     Args:
         rules_dir: Directory to save rules JSON files
         symbol: Symbol name
         rules: EMNRRules object to save
-    
+
     Returns:
         True if successful, False otherwise
     """
-    rules_dir.mkdir(parents=True, exist_ok=True)
-    rules_path = rules_dir / f"{symbol}_{rules.timeframe}.json"
-    
+    # Convert to Path if string
+    rules_dir_path = Path(rules_dir) if isinstance(rules_dir, str) else rules_dir
+    rules_dir_path.mkdir(parents=True, exist_ok=True)
+    rules_path = rules_dir_path / f"{symbol}_{rules.timeframe}.json"
+
     try:
         with open(rules_path, 'w') as f:
             json.dump(rules.to_dict(), f, indent=2)
@@ -113,20 +117,22 @@ def save_rules(rules_dir: Path, symbol: str, rules: EMNRRules) -> bool:
 def delete_rules(rules_dir: Path, symbol: str, timeframe: str = "H1") -> bool:
     """
     Delete EMNR rules.
-    
+
     Args:
         rules_dir: Directory containing rules JSON files
         symbol: Symbol name
         timeframe: Timeframe
-    
+
     Returns:
         True if deleted, False if not found or error
     """
-    rules_path = rules_dir / f"{symbol}_{timeframe}.json"
-    
+    # Convert to Path if string
+    rules_dir_path = Path(rules_dir) if isinstance(rules_dir, str) else rules_dir
+    rules_path = rules_dir_path / f"{symbol}_{timeframe}.json"
+
     if not rules_path.exists():
         return False
-    
+
     try:
         rules_path.unlink()
         return True
