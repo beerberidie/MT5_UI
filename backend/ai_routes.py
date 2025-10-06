@@ -28,6 +28,7 @@ from backend.models import (
 from backend.ai.engine import AIEngine
 from backend.ai.ai_logger import get_decisions, get_decision_stats
 from backend.ai.rules_manager import load_rules, save_rules, create_default_rules
+from backend.ai.executor import TradeIdeaExecutor
 from backend.mt5_client import MT5Client
 
 logger = logging.getLogger(__name__)
@@ -37,6 +38,7 @@ router = APIRouter(prefix="/api/ai", tags=["AI Trading"])
 
 # Global state (in production, use proper state management)
 _ai_engine: Optional[AIEngine] = None
+_executor: Optional[TradeIdeaExecutor] = None
 _enabled_symbols: Dict[str, Dict] = {}  # {symbol: {timeframe, auto_execute}}
 _active_trade_ideas: List[TradeIdea] = []
 
@@ -48,6 +50,16 @@ def get_ai_engine() -> AIEngine:
         # Initialize MT5Client and AIEngine
         mt5_client = MT5Client()
         _ai_engine = AIEngine(mt5_client)
+    return _ai_engine
+
+
+def get_executor() -> TradeIdeaExecutor:
+    """Dependency to get trade idea executor instance."""
+    global _executor
+    if _executor is None:
+        # Initialize MT5Client and Executor
+        mt5_client = MT5Client()
+        _executor = TradeIdeaExecutor(mt5_client)
     return _ai_engine
 
 
@@ -367,4 +379,157 @@ async def save_strategy(
     except Exception as e:
         logger.error(f"Error saving strategy for {symbol}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================================
+# Trade Idea Execution Endpoints
+# ============================================================================
+
+@router.get("/trade-ideas/pending")
+async def get_pending_trade_ideas():
+    """
+    Get all pending trade ideas awaiting approval.
+
+    Returns:
+        List of pending trade ideas
+    """
+    global _active_trade_ideas
+    pending = [idea for idea in _active_trade_ideas if idea.status == "pending_approval"]
+    return {"trade_ideas": pending, "count": len(pending)}
+
+
+@router.get("/trade-ideas/history")
+async def get_trade_ideas_history(limit: int = 50):
+    """
+    Get historical trade ideas (all statuses).
+
+    Args:
+        limit: Maximum number of ideas to return
+
+    Returns:
+        List of trade ideas
+    """
+    global _active_trade_ideas
+    # Return most recent first
+    ideas = sorted(_active_trade_ideas, key=lambda x: x.timestamp, reverse=True)
+    return {"trade_ideas": ideas[:limit], "count": len(ideas)}
+
+
+@router.post("/trade-ideas/{idea_id}/approve")
+async def approve_trade_idea(
+    idea_id: str,
+    executor: TradeIdeaExecutor = Depends(get_executor)
+):
+    """
+    Approve a trade idea (changes status to approved, does not execute).
+
+    Args:
+        idea_id: Trade idea ID
+
+    Returns:
+        Updated trade idea
+    """
+    global _active_trade_ideas
+
+    # Find trade idea
+    idea = next((i for i in _active_trade_ideas if i.id == idea_id), None)
+    if not idea:
+        raise HTTPException(status_code=404, detail=f"Trade idea {idea_id} not found")
+
+    if idea.status != "pending_approval":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Trade idea must be pending approval (current status: {idea.status})"
+        )
+
+    # Update status to approved
+    idea.status = "approved"
+    logger.info(f"Trade idea {idea_id} approved")
+
+    return {"success": True, "trade_idea": idea}
+
+
+@router.post("/trade-ideas/{idea_id}/reject")
+async def reject_trade_idea(idea_id: str):
+    """
+    Reject a trade idea.
+
+    Args:
+        idea_id: Trade idea ID
+
+    Returns:
+        Success message
+    """
+    global _active_trade_ideas
+
+    # Find trade idea
+    idea = next((i for i in _active_trade_ideas if i.id == idea_id), None)
+    if not idea:
+        raise HTTPException(status_code=404, detail=f"Trade idea {idea_id} not found")
+
+    if idea.status not in ["pending_approval", "approved"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot reject trade idea with status: {idea.status}"
+        )
+
+    # Update status to rejected
+    idea.status = "rejected"
+    logger.info(f"Trade idea {idea_id} rejected")
+
+    return {"success": True, "message": f"Trade idea {idea_id} rejected"}
+
+
+@router.post("/trade-ideas/{idea_id}/execute")
+async def execute_trade_idea(
+    idea_id: str,
+    executor: TradeIdeaExecutor = Depends(get_executor)
+):
+    """
+    Execute an approved trade idea.
+
+    Args:
+        idea_id: Trade idea ID
+
+    Returns:
+        Execution result
+    """
+    global _active_trade_ideas
+
+    # Find trade idea
+    idea = next((i for i in _active_trade_ideas if i.id == idea_id), None)
+    if not idea:
+        raise HTTPException(status_code=404, detail=f"Trade idea {idea_id} not found")
+
+    if idea.status != "approved":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Trade idea must be approved before execution (current status: {idea.status})"
+        )
+
+    # Get account balance
+    try:
+        account_info = executor.mt5_client.get_account_info()
+        account_balance = account_info.get('balance', 10000.0)  # Default fallback
+    except Exception as e:
+        logger.warning(f"Could not get account balance: {e}, using default")
+        account_balance = 10000.0
+
+    # Execute trade idea
+    result = await executor.execute_trade_idea(idea, account_balance)
+
+    if result.success:
+        # Update status to executed
+        idea.status = "executed"
+        logger.info(f"Trade idea {idea_id} executed successfully: order {result.order_id}")
+
+        return {
+            "success": True,
+            "order_id": result.order_id,
+            "trade_idea": idea,
+            "details": result.details
+        }
+    else:
+        logger.error(f"Trade idea {idea_id} execution failed: {result.error}")
+        raise HTTPException(status_code=500, detail=result.error)
+
 
