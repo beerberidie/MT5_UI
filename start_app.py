@@ -21,8 +21,9 @@ BACKEND_CMD = [
     str(VENV_PY), "-m", "uvicorn", "backend.app:app",
     "--host", "127.0.0.1", "--port", "5001", "--reload",
 ]
+# Use custom SPA server that serves index.html for all routes
 FRONTEND_CMD = [
-    str(VENV_PY), "-m", "http.server", "3000", "-d", str(STATIC_DIR)
+    str(VENV_PY), str(ROOT / "spa_server.py"), "3000", "-d", str(STATIC_DIR)
 ]
 
 WIN = os.name == "nt"

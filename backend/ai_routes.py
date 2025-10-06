@@ -328,7 +328,8 @@ async def get_strategy(
 
         if rules:
             # Return the strategy object directly (not wrapped)
-            return rules.__dict__
+            # Use to_dict() to get proper nested structure
+            return rules.to_dict()
         else:
             # Return 404 with helpful error message
             raise HTTPException(
