@@ -269,7 +269,9 @@ export async function saveStrategy(symbol: string, strategy: any): Promise<any> 
 // ---- Trade Idea Execution ----
 
 export async function getPendingTradeIdeas(): Promise<any[]> {
-  const data = await apiCall<any[]>(`/api/ai/trade-ideas/pending`);
+  const response = await apiCall<any>(`/api/ai/trade-ideas/pending`);
+  // Backend returns { trade_ideas: [...], count: number }
+  const data = response?.trade_ideas || response;
   // Defensive check: ensure data is an array
   if (!Array.isArray(data)) {
     console.error('getPendingTradeIdeas: API returned non-array data:', data);
@@ -279,7 +281,9 @@ export async function getPendingTradeIdeas(): Promise<any[]> {
 }
 
 export async function getTradeIdeaHistory(): Promise<any[]> {
-  const data = await apiCall<any[]>(`/api/ai/trade-ideas/history`);
+  const response = await apiCall<any>(`/api/ai/trade-ideas/history`);
+  // Backend returns { trade_ideas: [...], count: number }
+  const data = response?.trade_ideas || response;
   // Defensive check: ensure data is an array
   if (!Array.isArray(data)) {
     console.error('getTradeIdeaHistory: API returned non-array data:', data);

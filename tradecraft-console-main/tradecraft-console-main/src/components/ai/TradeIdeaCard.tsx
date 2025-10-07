@@ -1,74 +1,26 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import {
   TrendingUp,
   TrendingDown,
-  CheckCircle,
   XCircle,
-  Clock,
   Target,
   Shield,
   Activity,
   Eye
 } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
 import type { TradeIdea } from '@/lib/ai-types';
 import { getConfidenceColor, getActionLabel, getActionColor } from '@/lib/ai-types';
 
 interface TradeIdeaCardProps {
   tradeIdea: TradeIdea;
   onReview?: (tradeIdea: TradeIdea) => void;
-  onApprove?: (id: string) => void;
-  onReject?: (id: string) => void;
 }
 
-const TradeIdeaCard: React.FC<TradeIdeaCardProps> = ({ tradeIdea, onReview, onApprove, onReject }) => {
-  const [processing, setProcessing] = useState(false);
-
+const TradeIdeaCard: React.FC<TradeIdeaCardProps> = ({ tradeIdea, onReview }) => {
   const handleReview = () => {
     if (onReview) {
       onReview(tradeIdea);
-    }
-  };
-
-  const handleApprove = async () => {
-    if (!onApprove) return;
-    setProcessing(true);
-    try {
-      await onApprove(tradeIdea.id);
-      toast({
-        title: 'Trade Idea Approved',
-        description: `${tradeIdea.symbol} ${tradeIdea.direction.toUpperCase()} trade approved`,
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to approve trade idea',
-        variant: 'destructive',
-      });
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleReject = async () => {
-    if (!onReject) return;
-    setProcessing(true);
-    try {
-      await onReject(tradeIdea.id);
-      toast({
-        title: 'Trade Idea Rejected',
-        description: `${tradeIdea.symbol} trade idea rejected`,
-        variant: 'destructive',
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to reject trade idea',
-        variant: 'destructive',
-      });
-    } finally {
-      setProcessing(false);
     }
   };
 
