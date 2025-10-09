@@ -1,0 +1,16 @@
+{
+  "accounts": [
+    {
+      "id": "example-account-id",
+      "name": "Demo Account",
+      "login": 107030709,
+      "password_encrypted": "encrypted_password_here",
+      "server": "MetaQuotes-Demo",
+      "is_active": true,
+      "created_at": "2025-01-06T10:00:00Z",
+      "updated_at": "2025-01-06T10:00:00Z"
+    }
+  ],
+  "active_account_id": "example-account-id"
+}
+

@@ -1,0 +1,42 @@
+{
+  "symbol": "EURUSD",
+  "timeframe": "H1",
+  "sessions": ["London", "NewYork", "Tokyo", "Sydney"],
+  "indicators": {
+    "ema": {
+      "fast": 20,
+      "slow": 50
+    },
+    "rsi": {
+      "period": 14,
+      "overbought": 70,
+      "oversold": 30
+    },
+    "macd": {
+      "fast": 12,
+      "slow": 26,
+      "signal": 9
+    },
+    "atr": {
+      "period": 14,
+      "multiplier": 1.5
+    }
+  },
+  "conditions": {
+    "entry": [
+      "ema_fast_gt_slow"
+    ],
+    "exit": [],
+    "strong": [
+      "macd_hist_gt_0"
+    ],
+    "weak": []
+  },
+  "strategy": {
+    "direction": "long",
+    "min_rr": 1.5,
+    "news_embargo_minutes": 0,
+    "invalidations": []
+  }
+}
+

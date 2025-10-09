@@ -1,0 +1,30 @@
+{
+  "integrations": [
+    {
+      "id": "example-integration-id",
+      "name": "NewsAPI",
+      "type": "news",
+      "api_key_encrypted": "encrypted_api_key_here",
+      "base_url": "https://newsapi.org/v2",
+      "config": {
+        "pageSize": 50,
+        "language": "en"
+      },
+      "status": "active",
+      "last_tested": "2025-01-06T10:00:00Z",
+      "created_at": "2025-01-06T10:00:00Z"
+    },
+    {
+      "id": "example-integration-id-2",
+      "name": "Econdb",
+      "type": "economic_calendar",
+      "api_key_encrypted": "encrypted_api_key_here",
+      "base_url": "https://www.econdb.com/api",
+      "config": {},
+      "status": "active",
+      "last_tested": "2025-01-06T10:00:00Z",
+      "created_at": "2025-01-06T10:00:00Z"
+    }
+  ]
+}
+

@@ -17,5 +17,12 @@ schedule==1.2.0
 jsonschema==4.19.0
 pytz>=2024.1
 
+# Storage and Security
+cryptography==41.0.7
+
+# Third-party data integrations
+feedparser==6.0.11
+requests==2.31.0
+
 # Security note: numpy<2 required for MetaTrader5 5.0.45 compatibility
 numpy==1.26.4

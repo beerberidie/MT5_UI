@@ -7,3 +7,16 @@ __pycache__/
 logs/
 data/
 
+# Security - Encryption keys
+config/.encryption_key
+
+# Database files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Sensitive configuration files
+config/accounts.json
+config/api_integrations.json
+
