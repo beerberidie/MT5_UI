@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useSettings, RiskSettings } from '@/lib/settings-context';
+import { AccountsSection } from '@/components/settings/AccountsSection';
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -159,9 +160,7 @@ const Settings: React.FC = () => {
           </div>
           <div className="trading-content">
             {tab === 'RISK' && RiskTab}
-            {tab === 'ACCOUNTS' && (
-              <div className="text-sm text-text-secondary">Accounts management placeholder (add/remove MT5 accounts).</div>
-            )}
+            {tab === 'ACCOUNTS' && <AccountsSection />}
             {tab === 'APIS' && (
               <div className="text-sm text-text-secondary">API keys / credentials placeholders.</div>
             )}

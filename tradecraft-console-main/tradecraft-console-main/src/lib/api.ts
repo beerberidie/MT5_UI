@@ -319,3 +319,85 @@ export async function executeTradeIdea(ideaId: string, accountBalance: number, v
   });
 }
 
+// ==================== SETTINGS API ====================
+
+export interface MT5Account {
+  id: string;
+  name: string;
+  login: number;
+  server: string;
+  is_active: boolean;
+  status: 'connected' | 'disconnected' | 'error';
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface AccountTestResult {
+  success: boolean;
+  connected: boolean;
+  error?: string;
+  account_info?: {
+    balance: number;
+    equity: number;
+    margin: number;
+    margin_free: number;
+    margin_level: number;
+    leverage: number;
+    currency: string;
+    name: string;
+    server: string;
+    login: number;
+  };
+}
+
+export async function getAccounts(): Promise<{ accounts: MT5Account[]; active_account_id: string | null }> {
+  return apiCall('/api/settings/accounts');
+}
+
+export async function createAccount(account: {
+  name: string;
+  login: number;
+  password: string;
+  server: string;
+}): Promise<MT5Account> {
+  return apiCall('/api/settings/accounts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(account),
+  });
+}
+
+export async function updateAccount(
+  accountId: string,
+  updates: {
+    name?: string;
+    login?: number;
+    password?: string;
+    server?: string;
+  }
+): Promise<MT5Account> {
+  return apiCall(`/api/settings/accounts/${accountId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
+}
+
+export async function deleteAccount(accountId: string): Promise<{ success: boolean; message: string }> {
+  return apiCall(`/api/settings/accounts/${accountId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function activateAccount(accountId: string): Promise<{ success: boolean; message: string; account: MT5Account }> {
+  return apiCall(`/api/settings/accounts/${accountId}/activate`, {
+    method: 'POST',
+  });
+}
+
+export async function testAccountConnection(accountId: string): Promise<AccountTestResult> {
+  return apiCall(`/api/settings/accounts/${accountId}/test`, {
+    method: 'POST',
+  });
+}
+

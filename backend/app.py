@@ -17,6 +17,7 @@ from .mt5_client import MT5Client
 from .models import OrderRequest, PendingOrderRequest, HistoricalBarsRequest, HistoricalTicksRequest, TradingHistoryRequest
 from .risk import risk_limits, symbol_map, sessions_map
 from . import ai_routes
+from . import settings_routes
 
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -44,6 +45,9 @@ app.add_middleware(
 
 # Mount AI routes
 app.include_router(ai_routes.router)
+
+# Mount Settings routes
+app.include_router(settings_routes.router)
 
 mt5 = MT5Client()
 
