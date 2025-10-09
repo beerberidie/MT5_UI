@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { useSettings, RiskSettings } from '@/lib/settings-context';
 import { AccountsSection } from '@/components/settings/AccountsSection';
+import { APIIntegrationsSection } from '@/components/settings/APIIntegrationsSection';
+import { AppearanceSection } from '@/components/settings/AppearanceSection';
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -161,12 +163,8 @@ const Settings: React.FC = () => {
           <div className="trading-content">
             {tab === 'RISK' && RiskTab}
             {tab === 'ACCOUNTS' && <AccountsSection />}
-            {tab === 'APIS' && (
-              <div className="text-sm text-text-secondary">API keys / credentials placeholders.</div>
-            )}
-            {tab === 'APPEARANCE' && (
-              <div className="text-sm text-text-secondary">Appearance customization placeholders (density/scale previews).</div>
-            )}
+            {tab === 'APIS' && <APIIntegrationsSection />}
+            {tab === 'APPEARANCE' && <AppearanceSection />}
           </div>
         </div>
       </div>

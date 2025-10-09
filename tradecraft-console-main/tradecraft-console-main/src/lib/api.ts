@@ -401,3 +401,94 @@ export async function testAccountConnection(accountId: string): Promise<AccountT
   });
 }
 
+// ==================== API INTEGRATIONS ====================
+
+export interface APIIntegration {
+  id: string;
+  name: string;
+  type: 'economic_calendar' | 'news' | 'custom';
+  base_url?: string;
+  config?: Record<string, any>;
+  status: 'active' | 'inactive' | 'error';
+  last_tested?: string;
+  created_at: string;
+  updated_at?: string;
+  api_key_masked: string;
+}
+
+export interface IntegrationTestResult {
+  success: boolean;
+  connected: boolean;
+  error?: string;
+  response_data?: Record<string, any>;
+}
+
+export async function getAPIIntegrations(): Promise<{ integrations: APIIntegration[] }> {
+  return apiCall('/api/settings/integrations');
+}
+
+export async function createAPIIntegration(integration: {
+  name: string;
+  type: 'economic_calendar' | 'news' | 'custom';
+  api_key: string;
+  base_url?: string;
+  config?: Record<string, any>;
+}): Promise<APIIntegration> {
+  return apiCall('/api/settings/integrations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(integration),
+  });
+}
+
+export async function updateAPIIntegration(
+  integrationId: string,
+  updates: {
+    name?: string;
+    type?: 'economic_calendar' | 'news' | 'custom';
+    api_key?: string;
+    base_url?: string;
+    config?: Record<string, any>;
+  }
+): Promise<APIIntegration> {
+  return apiCall(`/api/settings/integrations/${integrationId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
+}
+
+export async function deleteAPIIntegration(integrationId: string): Promise<{ success: boolean; message: string }> {
+  return apiCall(`/api/settings/integrations/${integrationId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function testAPIIntegration(integrationId: string): Promise<IntegrationTestResult> {
+  return apiCall(`/api/settings/integrations/${integrationId}/test`, {
+    method: 'POST',
+  });
+}
+
+// ==================== APPEARANCE SETTINGS ====================
+
+export interface AppearanceSettings {
+  density: 'compact' | 'normal' | 'comfortable';
+  theme: 'dark' | 'light';
+  font_size: number;
+  accent_color: string;
+  show_animations: boolean;
+}
+
+export async function getAppearanceSettings(): Promise<AppearanceSettings> {
+  return apiCall('/api/settings/appearance');
+}
+
+export async function updateAppearanceSettings(settings: AppearanceSettings): Promise<AppearanceSettings> {
+  return apiCall('/api/settings/appearance', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  });
+}
+

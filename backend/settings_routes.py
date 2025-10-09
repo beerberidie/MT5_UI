@@ -56,6 +56,55 @@ class AccountTestResponse(BaseModel):
     account_info: Optional[Dict[str, Any]] = None
 
 
+class APIIntegrationCreate(BaseModel):
+    """Model for creating a new API integration."""
+    name: str = Field(..., min_length=1, max_length=100, description="Integration name")
+    type: str = Field(..., description="Integration type: economic_calendar, news, custom")
+    api_key: str = Field(..., min_length=1, description="API key")
+    base_url: Optional[str] = Field(None, description="Base URL for API")
+    config: Optional[Dict[str, Any]] = Field(None, description="Additional configuration")
+
+
+class APIIntegrationUpdate(BaseModel):
+    """Model for updating an existing API integration."""
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    type: Optional[str] = None
+    api_key: Optional[str] = Field(None, min_length=1)
+    base_url: Optional[str] = None
+    config: Optional[Dict[str, Any]] = None
+
+
+class APIIntegrationResponse(BaseModel):
+    """Model for API integration response (API key masked)."""
+    id: str
+    name: str
+    type: str
+    base_url: Optional[str] = None
+    config: Optional[Dict[str, Any]] = None
+    status: str = "inactive"  # active, inactive, error
+    last_tested: Optional[str] = None
+    created_at: str
+    updated_at: Optional[str] = None
+    api_key_masked: str = "****"
+
+
+class APIIntegrationTestResponse(BaseModel):
+    """Model for API integration test response."""
+    success: bool
+    connected: bool
+    error: Optional[str] = None
+    response_data: Optional[Dict[str, Any]] = None
+
+
+class AppearanceSettings(BaseModel):
+    """Model for appearance settings."""
+    density: str = Field(default="normal", description="UI density: compact, normal, comfortable")
+    theme: str = Field(default="dark", description="Theme: dark, light")
+    font_size: int = Field(default=14, ge=12, le=18, description="Font size in pixels")
+    accent_color: str = Field(default="#3b82f6", description="Accent color (hex)")
+    show_animations: bool = Field(default=True, description="Show animations")
+
+
 # ==================== DEPENDENCIES ====================
 
 def get_mt5_client() -> MT5Client:
@@ -64,6 +113,22 @@ def get_mt5_client() -> MT5Client:
 
 
 # ==================== HELPER FUNCTIONS ====================
+
+def _mask_api_key(api_key: str, visible_chars: int = 4) -> str:
+    """
+    Mask API key for display.
+
+    Args:
+        api_key: API key to mask
+        visible_chars: Number of characters to show at the end
+
+    Returns:
+        Masked API key (e.g., "****abcd")
+    """
+    if not api_key or len(api_key) <= visible_chars:
+        return "****"
+    return "****" + api_key[-visible_chars:]
+
 
 def _mask_account_password(account: Dict[str, Any]) -> AccountResponse:
     """
@@ -95,6 +160,153 @@ def _mask_account_password(account: Dict[str, Any]) -> AccountResponse:
         created_at=account_copy.get("created_at", datetime.utcnow().isoformat()),
         updated_at=account_copy.get("updated_at")
     )
+
+
+def _mask_integration_api_key(integration: Dict[str, Any]) -> APIIntegrationResponse:
+    """
+    Convert integration dict to response model with masked API key.
+
+    Args:
+        integration: Integration dictionary from storage
+
+    Returns:
+        APIIntegrationResponse with API key masked
+    """
+    # Remove API key from response
+    integration_copy = integration.copy()
+    api_key = integration_copy.pop("api_key", "")
+    integration_copy.pop("api_key_encrypted", None)
+
+    return APIIntegrationResponse(
+        id=integration_copy.get("id", ""),
+        name=integration_copy.get("name", ""),
+        type=integration_copy.get("type", "custom"),
+        base_url=integration_copy.get("base_url"),
+        config=integration_copy.get("config"),
+        status=integration_copy.get("status", "inactive"),
+        last_tested=integration_copy.get("last_tested"),
+        created_at=integration_copy.get("created_at", datetime.utcnow().isoformat()),
+        updated_at=integration_copy.get("updated_at"),
+        api_key_masked=_mask_api_key(api_key) if api_key else "****"
+    )
+
+
+async def _test_api_integration(integration_type: str, api_key: str, base_url: Optional[str] = None) -> APIIntegrationTestResponse:
+    """
+    Test API integration connection.
+
+    Args:
+        integration_type: Type of integration (economic_calendar, news, custom)
+        api_key: API key
+        base_url: Base URL for API
+
+    Returns:
+        APIIntegrationTestResponse with connection status
+    """
+    try:
+        import requests
+
+        # Test based on integration type
+        if integration_type == "economic_calendar":
+            # Test Econdb API
+            url = base_url or "https://www.econdb.com/api"
+            response = requests.get(
+                f"{url}/series",
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=10
+            )
+
+            if response.status_code == 200:
+                return APIIntegrationTestResponse(
+                    success=True,
+                    connected=True,
+                    response_data={"status": "connected", "api": "econdb"}
+                )
+            else:
+                return APIIntegrationTestResponse(
+                    success=False,
+                    connected=False,
+                    error=f"API returned status {response.status_code}"
+                )
+
+        elif integration_type == "news":
+            # Test NewsAPI or Finnhub
+            if base_url and "newsapi" in base_url.lower():
+                # NewsAPI
+                url = base_url or "https://newsapi.org/v2"
+                response = requests.get(
+                    f"{url}/top-headlines",
+                    params={"apiKey": api_key, "category": "business"},
+                    timeout=10
+                )
+            else:
+                # Finnhub
+                url = base_url or "https://finnhub.io/api/v1"
+                response = requests.get(
+                    f"{url}/news",
+                    params={"token": api_key, "category": "forex"},
+                    timeout=10
+                )
+
+            if response.status_code == 200:
+                return APIIntegrationTestResponse(
+                    success=True,
+                    connected=True,
+                    response_data={"status": "connected", "articles_count": len(response.json())}
+                )
+            else:
+                return APIIntegrationTestResponse(
+                    success=False,
+                    connected=False,
+                    error=f"API returned status {response.status_code}"
+                )
+
+        else:
+            # Custom integration - just test if URL is reachable
+            if not base_url:
+                return APIIntegrationTestResponse(
+                    success=False,
+                    connected=False,
+                    error="Base URL required for custom integrations"
+                )
+
+            response = requests.get(
+                base_url,
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=10
+            )
+
+            if response.status_code < 400:
+                return APIIntegrationTestResponse(
+                    success=True,
+                    connected=True,
+                    response_data={"status": "connected", "status_code": response.status_code}
+                )
+            else:
+                return APIIntegrationTestResponse(
+                    success=False,
+                    connected=False,
+                    error=f"API returned status {response.status_code}"
+                )
+
+    except requests.exceptions.Timeout:
+        return APIIntegrationTestResponse(
+            success=False,
+            connected=False,
+            error="Connection timeout"
+        )
+    except requests.exceptions.ConnectionError:
+        return APIIntegrationTestResponse(
+            success=False,
+            connected=False,
+            error="Connection failed"
+        )
+    except Exception as e:
+        return APIIntegrationTestResponse(
+            success=False,
+            connected=False,
+            error=f"Test failed: {str(e)}"
+        )
 
 
 async def _test_mt5_connection(login: int, password: str, server: str) -> AccountTestResponse:
@@ -358,4 +570,266 @@ async def test_account_connection(account_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to test connection: {str(e)}")
+
+
+# ==================== API INTEGRATION ENDPOINTS ====================
+
+@router.get("/integrations", response_model=Dict[str, Any])
+async def get_integrations():
+    """
+    Get all API integrations.
+
+    Returns:
+        Dictionary with integrations list
+    """
+    storage = get_storage()
+
+    try:
+        integrations = await storage.get_api_integrations()
+
+        # Mask API keys in response
+        masked_integrations = [_mask_integration_api_key(integ) for integ in integrations]
+
+        return {
+            "integrations": masked_integrations
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get integrations: {str(e)}")
+
+
+@router.post("/integrations", response_model=APIIntegrationResponse)
+async def create_integration(integration: APIIntegrationCreate):
+    """
+    Create a new API integration.
+
+    Args:
+        integration: Integration creation data
+
+    Returns:
+        Created integration (API key masked)
+    """
+    storage = get_storage()
+
+    try:
+        # Validate integration type
+        valid_types = ["economic_calendar", "news", "custom"]
+        if integration.type not in valid_types:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid integration type. Must be one of: {', '.join(valid_types)}"
+            )
+
+        # Create integration (API key will be encrypted by storage layer)
+        new_integration = await storage.add_api_integration({
+            "name": integration.name,
+            "type": integration.type,
+            "api_key": integration.api_key,
+            "base_url": integration.base_url,
+            "config": integration.config
+        })
+
+        return _mask_integration_api_key(new_integration)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create integration: {str(e)}")
+
+
+@router.put("/integrations/{integration_id}", response_model=APIIntegrationResponse)
+async def update_integration(integration_id: str, updates: APIIntegrationUpdate):
+    """
+    Update an existing API integration.
+
+    Args:
+        integration_id: Integration ID
+        updates: Fields to update
+
+    Returns:
+        Updated integration (API key masked)
+    """
+    storage = get_storage()
+
+    try:
+        # Build updates dict (only include provided fields)
+        update_dict = {}
+        if updates.name is not None:
+            update_dict["name"] = updates.name
+        if updates.type is not None:
+            # Validate type
+            valid_types = ["economic_calendar", "news", "custom"]
+            if updates.type not in valid_types:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid integration type. Must be one of: {', '.join(valid_types)}"
+                )
+            update_dict["type"] = updates.type
+        if updates.api_key is not None:
+            update_dict["api_key"] = updates.api_key
+        if updates.base_url is not None:
+            update_dict["base_url"] = updates.base_url
+        if updates.config is not None:
+            update_dict["config"] = updates.config
+
+        if not update_dict:
+            raise HTTPException(status_code=400, detail="No fields to update")
+
+        updated_integration = await storage.update_api_integration(integration_id, update_dict)
+
+        if not updated_integration:
+            raise HTTPException(status_code=404, detail="Integration not found")
+
+        return _mask_integration_api_key(updated_integration)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update integration: {str(e)}")
+
+
+@router.delete("/integrations/{integration_id}")
+async def delete_integration(integration_id: str):
+    """
+    Delete an API integration.
+
+    Args:
+        integration_id: Integration ID
+
+    Returns:
+        Success status
+    """
+    storage = get_storage()
+
+    try:
+        success = await storage.remove_api_integration(integration_id)
+
+        if not success:
+            raise HTTPException(status_code=404, detail="Integration not found")
+
+        return {"success": True, "message": "Integration deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete integration: {str(e)}")
+
+
+@router.post("/integrations/{integration_id}/test", response_model=APIIntegrationTestResponse)
+async def test_integration_connection(integration_id: str):
+    """
+    Test API integration connection.
+
+    Args:
+        integration_id: Integration ID
+
+    Returns:
+        Connection test results
+    """
+    storage = get_storage()
+
+    try:
+        # Get integration with decrypted API key
+        integration = await storage.get_api_integration(integration_id)
+
+        if not integration:
+            raise HTTPException(status_code=404, detail="Integration not found")
+
+        # Test connection
+        result = await _test_api_integration(
+            integration_type=integration["type"],
+            api_key=integration["api_key"],
+            base_url=integration.get("base_url")
+        )
+
+        # Update last_tested timestamp if successful
+        if result.connected:
+            await storage.update_api_integration(integration_id, {
+                "last_tested": datetime.utcnow().isoformat(),
+                "status": "active"
+            })
+        else:
+            await storage.update_api_integration(integration_id, {
+                "status": "error"
+            })
+
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to test integration: {str(e)}")
+
+
+# ==================== APPEARANCE ENDPOINTS ====================
+
+@router.get("/appearance", response_model=AppearanceSettings)
+async def get_appearance_settings():
+    """
+    Get appearance settings.
+
+    Returns:
+        Current appearance settings
+    """
+    storage = get_storage()
+
+    try:
+        settings = await storage.get_appearance_settings()
+
+        return AppearanceSettings(
+            density=settings.get("density", "normal"),
+            theme=settings.get("theme", "dark"),
+            font_size=settings.get("font_size", 14),
+            accent_color=settings.get("accent_color", "#3b82f6"),
+            show_animations=settings.get("show_animations", True)
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get appearance settings: {str(e)}")
+
+
+@router.put("/appearance", response_model=AppearanceSettings)
+async def update_appearance_settings(settings: AppearanceSettings):
+    """
+    Update appearance settings.
+
+    Args:
+        settings: New appearance settings
+
+    Returns:
+        Updated appearance settings
+    """
+    storage = get_storage()
+
+    try:
+        # Validate density
+        valid_densities = ["compact", "normal", "comfortable"]
+        if settings.density not in valid_densities:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid density. Must be one of: {', '.join(valid_densities)}"
+            )
+
+        # Validate theme
+        valid_themes = ["dark", "light"]
+        if settings.theme not in valid_themes:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid theme. Must be one of: {', '.join(valid_themes)}"
+            )
+
+        # Update settings
+        updated_settings = await storage.update_appearance_settings({
+            "density": settings.density,
+            "theme": settings.theme,
+            "font_size": settings.font_size,
+            "accent_color": settings.accent_color,
+            "show_animations": settings.show_animations
+        })
+
+        return AppearanceSettings(
+            density=updated_settings.get("density", "normal"),
+            theme=updated_settings.get("theme", "dark"),
+            font_size=updated_settings.get("font_size", 14),
+            accent_color=updated_settings.get("accent_color", "#3b82f6"),
+            show_animations=updated_settings.get("show_animations", True)
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update appearance settings: {str(e)}")
 
