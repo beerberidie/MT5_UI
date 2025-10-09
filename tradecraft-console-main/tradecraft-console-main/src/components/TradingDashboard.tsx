@@ -968,10 +968,6 @@ const TradingDashboard: React.FC = () => {
                 <BarChart3 className="w-4 h-4" />
                 {!sidebarCollapsed && 'Analysis'}
               </button>
-              <button id="nav-ai" type="button" onClick={() => navigate('/ai')} className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-sidebar-item-hover text-text-secondary text-sm">
-                <Activity className="w-4 h-4" />
-                {!sidebarCollapsed && 'AI'}
-              </button>
               <button id="nav-settings" type="button" onClick={() => navigate('/settings')} className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-sidebar-item-hover text-text-secondary text-sm">
                 <Settings className="w-4 h-4" />
                 {!sidebarCollapsed && 'Settings'}
