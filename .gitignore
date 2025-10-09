@@ -6,7 +6,7 @@ __pycache__/
 *.pyd
 .env
 logs/
-data/
+/data/
 
 # Security - Encryption keys
 config/.encryption_key

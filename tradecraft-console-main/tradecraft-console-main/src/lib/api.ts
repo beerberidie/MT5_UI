@@ -492,3 +492,138 @@ export async function updateAppearanceSettings(settings: AppearanceSettings): Pr
   });
 }
 
+// ==================== 3RD PARTY DATA ====================
+
+// Economic Calendar
+export interface EconomicEvent {
+  id: string;
+  time: string;
+  currency: string;
+  event: string;
+  impact: 'high' | 'medium' | 'low';
+  forecast?: string;
+  previous?: string;
+  actual?: string;
+}
+
+export interface EconomicCalendarResponse {
+  events: EconomicEvent[];
+  total: number;
+  from_date: string;
+  to_date: string;
+}
+
+export async function getEconomicCalendar(params?: {
+  from_date?: string;
+  to_date?: string;
+  currencies?: string;
+  impact?: string;
+}): Promise<EconomicCalendarResponse> {
+  const queryParams = new URLSearchParams();
+  if (params?.from_date) queryParams.append('from_date', params.from_date);
+  if (params?.to_date) queryParams.append('to_date', params.to_date);
+  if (params?.currencies) queryParams.append('currencies', params.currencies);
+  if (params?.impact) queryParams.append('impact', params.impact);
+
+  const url = `/api/data/economic-calendar${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+  return apiCall(url);
+}
+
+// Market News
+export interface NewsArticle {
+  id: string;
+  title: string;
+  description?: string;
+  source: string;
+  url: string;
+  published_at: string;
+  image_url?: string;
+  category?: string;
+}
+
+export interface NewsResponse {
+  articles: NewsArticle[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export async function getNews(params?: {
+  category?: string;
+  query?: string;
+  page?: number;
+  page_size?: number;
+}): Promise<NewsResponse> {
+  const queryParams = new URLSearchParams();
+  if (params?.category) queryParams.append('category', params.category);
+  if (params?.query) queryParams.append('query', params.query);
+  if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.page_size) queryParams.append('page_size', params.page_size.toString());
+
+  const url = `/api/data/news${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+  return apiCall(url);
+}
+
+// RSS Feeds
+export interface RSSFeed {
+  id: string;
+  name: string;
+  url: string;
+  category?: string;
+  enabled: boolean;
+  last_fetched?: string;
+  created_at: string;
+}
+
+export interface RSSArticle {
+  id: string;
+  feed_id: string;
+  feed_name: string;
+  title: string;
+  summary?: string;
+  link: string;
+  published: string;
+}
+
+export async function getRSSFeeds(): Promise<{ feeds: RSSFeed[] }> {
+  return apiCall('/api/data/rss/feeds');
+}
+
+export async function addRSSFeed(name: string, url: string, category?: string): Promise<RSSFeed> {
+  const queryParams = new URLSearchParams();
+  queryParams.append('name', name);
+  queryParams.append('url', url);
+  if (category) queryParams.append('category', category);
+
+  return apiCall(`/api/data/rss/feeds?${queryParams.toString()}`, {
+    method: 'POST',
+  });
+}
+
+export async function deleteRSSFeed(feedId: string): Promise<{ success: boolean; message: string }> {
+  return apiCall(`/api/data/rss/feeds/${feedId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function getRSSArticles(feedId?: string, limit?: number): Promise<{ articles: RSSArticle[]; total: number }> {
+  const queryParams = new URLSearchParams();
+  if (feedId) queryParams.append('feed_id', feedId);
+  if (limit) queryParams.append('limit', limit.toString());
+
+  const url = `/api/data/rss/articles${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+  return apiCall(url);
+}
+
+// Technical Indicators
+export interface IndicatorData {
+  symbol: string;
+  timeframe: string;
+  timestamp: string;
+  indicators: Record<string, any>;
+}
+
+export async function getIndicators(symbol: string, timeframe: string = 'H1'): Promise<IndicatorData> {
+  return apiCall(`/api/data/indicators/${symbol}?timeframe=${timeframe}`);
+}
+

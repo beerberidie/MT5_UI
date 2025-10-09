@@ -14,7 +14,8 @@ import {
   Target,
   Clock,
   Activity,
-  X
+  X,
+  Database
 } from 'lucide-react';
 import { getSymbols, getPrioritySymbols, getAccount, getPositions, postOrder, getHistoricalBars, getDeals, getOrdersHistory, getPendingOrders, createPendingOrder, cancelPendingOrder, modifyPendingOrder, closePosition } from '@/lib/api';
 import ErrorBoundary from './ErrorBoundary';
@@ -967,6 +968,10 @@ const TradingDashboard: React.FC = () => {
               <button id="nav-analysis" type="button" onClick={() => navigate('/analysis')} className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-sidebar-item-hover text-text-secondary text-sm">
                 <BarChart3 className="w-4 h-4" />
                 {!sidebarCollapsed && 'Analysis'}
+              </button>
+              <button id="nav-data" type="button" onClick={() => navigate('/data')} className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-sidebar-item-hover text-text-secondary text-sm">
+                <Database className="w-4 h-4" />
+                {!sidebarCollapsed && '3rd Party Data'}
               </button>
               <button id="nav-settings" type="button" onClick={() => navigate('/settings')} className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-sidebar-item-hover text-text-secondary text-sm">
                 <Settings className="w-4 h-4" />

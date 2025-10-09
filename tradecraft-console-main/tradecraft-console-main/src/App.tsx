@@ -8,6 +8,7 @@ import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
 import AI from "./pages/AI";
 import Analysis from "./pages/Analysis";
+import Data from "./pages/Data";
 import { SettingsProvider } from "./lib/settings-context";
 
 const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/ai" element={<AI />} />
             <Route path="/analysis" element={<Analysis />} />
+            <Route path="/data" element={<Data />} />
             <Route path="/settings" element={<Settings />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
