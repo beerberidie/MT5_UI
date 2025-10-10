@@ -319,6 +319,33 @@ export async function executeTradeIdea(ideaId: string, accountBalance: number, v
   });
 }
 
+// ---- Autonomy Loop API ----
+
+export async function startAutonomyLoop(intervalMinutes: number = 15): Promise<any> {
+  return apiCall(`/api/ai/autonomy/start?interval_minutes=${intervalMinutes}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+export async function stopAutonomyLoop(): Promise<any> {
+  return apiCall(`/api/ai/autonomy/stop`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+export async function getAutonomyStatus(): Promise<any> {
+  return apiCall(`/api/ai/autonomy/status`);
+}
+
+export async function triggerImmediateEvaluation(): Promise<any> {
+  return apiCall(`/api/ai/autonomy/evaluate-now`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
 // ==================== SETTINGS API ====================
 
 export interface MT5Account {

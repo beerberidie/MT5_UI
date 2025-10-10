@@ -14,6 +14,7 @@ redis==5.0.1
 # AI Trading dependencies
 pandas-ta>=0.3.14
 schedule==1.2.0
+apscheduler==3.10.4
 jsonschema==4.19.0
 pytz>=2024.1
 

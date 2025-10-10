@@ -29,6 +29,7 @@ from backend.ai.engine import AIEngine
 from backend.ai.ai_logger import get_decisions, get_decision_stats
 from backend.ai.rules_manager import load_rules, save_rules, create_default_rules
 from backend.ai.executor import TradeIdeaExecutor
+from backend.ai.autonomy_loop import AutonomyLoop, get_autonomy_loop, set_autonomy_loop
 from backend.mt5_client import MT5Client
 
 logger = logging.getLogger(__name__)
@@ -116,17 +117,20 @@ async def evaluate_symbol(
 async def get_ai_status(engine: AIEngine = Depends(get_ai_engine)):
     """
     Get current AI engine status.
-    
+
     Returns:
         AIStatusResponse with enabled status, mode, and active symbols
     """
     try:
+        autonomy_loop = get_autonomy_loop()
+        autonomy_running = autonomy_loop.is_running if autonomy_loop else False
+
         return AIStatusResponse(
             enabled=engine.settings.get("enabled", True),
             mode=engine.settings.get("mode", "semi-auto"),
             enabled_symbols=list(_enabled_symbols.keys()),
             active_trade_ideas=len(_active_trade_ideas),
-            autonomy_loop_running=False  # TODO: Implement autonomy loop
+            autonomy_loop_running=autonomy_running
         )
     except Exception as e:
         logger.error(f"Error getting AI status: {e}", exc_info=True)
@@ -200,25 +204,30 @@ async def emergency_kill_switch(
 ):
     """
     Emergency kill switch - immediately disable all AI trading.
-    
+
     Args:
         request: Kill switch request with reason
-        
+
     Returns:
         Success message
     """
     try:
         # Disable AI globally
         engine.settings["enabled"] = False
-        
+
         # Clear all enabled symbols
         _enabled_symbols.clear()
-        
+
         # Clear active trade ideas
         _active_trade_ideas.clear()
-        
+
+        # Stop autonomy loop if running
+        autonomy_loop = get_autonomy_loop()
+        if autonomy_loop and autonomy_loop.is_running:
+            autonomy_loop.stop()
+
         logger.warning(f"EMERGENCY KILL SWITCH ACTIVATED: {request.reason}")
-        
+
         return {
             "success": True,
             "message": "AI trading disabled globally",
@@ -227,6 +236,169 @@ async def emergency_kill_switch(
         }
     except Exception as e:
         logger.error(f"Error activating kill switch: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Autonomy Loop Endpoints
+# ============================================================================
+
+@router.post("/autonomy/start")
+async def start_autonomy_loop(
+    interval_minutes: int = 15,
+    engine: AIEngine = Depends(get_ai_engine)
+):
+    """
+    Start the AI autonomy loop for automated evaluation.
+
+    Args:
+        interval_minutes: Evaluation interval in minutes (default: 15)
+
+    Returns:
+        Status dictionary with success/error information
+    """
+    try:
+        autonomy_loop = get_autonomy_loop()
+
+        # Initialize autonomy loop if not exists
+        if autonomy_loop is None:
+            # Create evaluation callback
+            def evaluation_callback(symbol: str) -> Dict:
+                """Callback for autonomy loop to evaluate a symbol."""
+                try:
+                    config = _enabled_symbols.get(symbol, {})
+                    timeframe = config.get("timeframe", "H1")
+
+                    # Evaluate symbol
+                    trade_idea = engine.evaluate(symbol=symbol, timeframe=timeframe, force=False)
+
+                    if trade_idea:
+                        # Add to active trade ideas
+                        _active_trade_ideas.append(trade_idea)
+
+                        # Auto-execute if configured
+                        if config.get("auto_execute", False) and engine.settings.get("mode") == "full-auto":
+                            executor = get_executor()
+                            if executor:
+                                executor.execute(trade_idea)
+
+                        return {
+                            "success": True,
+                            "trade_idea": trade_idea.model_dump(),
+                            "message": f"Trade idea generated with {trade_idea.confidence}% confidence"
+                        }
+                    else:
+                        return {
+                            "success": True,
+                            "trade_idea": None,
+                            "message": "No trade idea generated - conditions not met"
+                        }
+
+                except Exception as e:
+                    logger.error(f"Error in evaluation callback for {symbol}: {e}", exc_info=True)
+                    return {
+                        "success": False,
+                        "message": str(e)
+                    }
+
+            # Create enabled symbols callback
+            def enabled_symbols_callback() -> Dict[str, bool]:
+                """Callback to get enabled symbols."""
+                return _enabled_symbols
+
+            # Create autonomy loop
+            autonomy_loop = AutonomyLoop(
+                evaluation_callback=evaluation_callback,
+                enabled_symbols_callback=enabled_symbols_callback,
+                timezone=engine.settings.get("timezone", "Africa/Johannesburg")
+            )
+            set_autonomy_loop(autonomy_loop)
+
+        # Start the loop
+        result = autonomy_loop.start(interval_minutes=interval_minutes)
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Error starting autonomy loop: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/autonomy/stop")
+async def stop_autonomy_loop():
+    """
+    Stop the AI autonomy loop.
+
+    Returns:
+        Status dictionary with success/error information
+    """
+    try:
+        autonomy_loop = get_autonomy_loop()
+
+        if autonomy_loop is None:
+            return {
+                "success": False,
+                "message": "Autonomy loop not initialized"
+            }
+
+        result = autonomy_loop.stop()
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Error stopping autonomy loop: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/autonomy/status")
+async def get_autonomy_status():
+    """
+    Get autonomy loop status.
+
+    Returns:
+        Status dictionary with running state, interval, stats
+    """
+    try:
+        autonomy_loop = get_autonomy_loop()
+
+        if autonomy_loop is None:
+            return {
+                "running": False,
+                "message": "Autonomy loop not initialized"
+            }
+
+        status = autonomy_loop.get_status()
+
+        return status
+
+    except Exception as e:
+        logger.error(f"Error getting autonomy status: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/autonomy/evaluate-now")
+async def trigger_immediate_evaluation():
+    """
+    Trigger immediate evaluation of all enabled symbols (manual trigger).
+
+    Returns:
+        Status dictionary with evaluation results
+    """
+    try:
+        autonomy_loop = get_autonomy_loop()
+
+        if autonomy_loop is None:
+            return {
+                "success": False,
+                "message": "Autonomy loop not initialized"
+            }
+
+        result = autonomy_loop.evaluate_now()
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Error triggering immediate evaluation: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

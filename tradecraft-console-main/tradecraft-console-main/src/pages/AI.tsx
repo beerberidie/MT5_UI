@@ -6,7 +6,10 @@ import {
   Settings as SettingsIcon,
   History,
   Play,
-  AlertCircle
+  AlertCircle,
+  Pause,
+  RefreshCw,
+  Clock
 } from 'lucide-react';
 import AIControlPanel from '@/components/ai/AIControlPanel';
 import TradeIdeaCard from '@/components/ai/TradeIdeaCard';
@@ -21,7 +24,11 @@ import {
   approveTradeIdea,
   rejectTradeIdea,
   executeTradeIdea,
-  getAccount
+  getAccount,
+  startAutonomyLoop,
+  stopAutonomyLoop,
+  getAutonomyStatus,
+  triggerImmediateEvaluation
 } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import type { TradeIdea, AIDecision } from '@/lib/ai-types';
@@ -40,10 +47,21 @@ const AI: React.FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [accountBalance, setAccountBalance] = useState<number>(10000);
 
+  // Autonomy loop state
+  const [autonomyRunning, setAutonomyRunning] = useState(false);
+  const [autonomyInterval, setAutonomyInterval] = useState(15);
+  const [autonomyStatus, setAutonomyStatus] = useState<any>(null);
+  const [loadingAutonomy, setLoadingAutonomy] = useState(false);
+
   useEffect(() => {
     loadSymbols();
     loadDecisions();
     loadAccountBalance();
+    loadAutonomyStatus();
+
+    // Poll autonomy status every 10 seconds
+    const interval = setInterval(loadAutonomyStatus, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   async function loadAccountBalance() {
@@ -216,6 +234,104 @@ const AI: React.FC = () => {
     }
   }
 
+  // Autonomy loop handlers
+  async function loadAutonomyStatus() {
+    try {
+      const status = await getAutonomyStatus();
+      setAutonomyStatus(status);
+      setAutonomyRunning(status.running || false);
+      if (status.interval_minutes) {
+        setAutonomyInterval(status.interval_minutes);
+      }
+    } catch (error) {
+      console.error('Failed to load autonomy status:', error);
+    }
+  }
+
+  async function handleStartAutonomy() {
+    setLoadingAutonomy(true);
+    try {
+      const result = await startAutonomyLoop(autonomyInterval);
+      if (result.success) {
+        toast({
+          title: 'Autonomy Loop Started',
+          description: `AI will evaluate enabled symbols every ${autonomyInterval} minutes`,
+        });
+        await loadAutonomyStatus();
+      } else {
+        toast({
+          title: 'Failed to Start',
+          description: result.message || 'Could not start autonomy loop',
+          variant: 'destructive',
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to start autonomy loop',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingAutonomy(false);
+    }
+  }
+
+  async function handleStopAutonomy() {
+    setLoadingAutonomy(true);
+    try {
+      const result = await stopAutonomyLoop();
+      if (result.success) {
+        toast({
+          title: 'Autonomy Loop Stopped',
+          description: 'Automated evaluation has been stopped',
+        });
+        await loadAutonomyStatus();
+      } else {
+        toast({
+          title: 'Failed to Stop',
+          description: result.message || 'Could not stop autonomy loop',
+          variant: 'destructive',
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to stop autonomy loop',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingAutonomy(false);
+    }
+  }
+
+  async function handleEvaluateNow() {
+    setLoadingAutonomy(true);
+    try {
+      const result = await triggerImmediateEvaluation();
+      if (result.success) {
+        toast({
+          title: 'Evaluation Triggered',
+          description: 'Immediate evaluation of all enabled symbols started',
+        });
+        await loadAutonomyStatus();
+      } else {
+        toast({
+          title: 'Failed to Evaluate',
+          description: result.message || 'Could not trigger evaluation',
+          variant: 'destructive',
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to trigger evaluation',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingAutonomy(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background text-text-primary">
       {/* Header */}
@@ -280,6 +396,128 @@ const AI: React.FC = () => {
             {/* Left Column - Control Panel */}
             <div className="lg:col-span-1">
               <AIControlPanel />
+
+              {/* Autonomy Loop Control */}
+              <div className="trading-panel mt-4">
+                <div className="trading-header">
+                  <h3 className="font-medium flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    Autonomy Loop
+                  </h3>
+                </div>
+                <div className="trading-content space-y-3">
+                  {/* Status Display */}
+                  <div className="flex items-center justify-between p-2 bg-panel-dark rounded">
+                    <span className="text-xs text-text-muted">Status:</span>
+                    <span className={`text-xs font-medium ${autonomyRunning ? 'text-positive' : 'text-text-muted'}`}>
+                      {autonomyRunning ? 'Running' : 'Stopped'}
+                    </span>
+                  </div>
+
+                  {autonomyStatus && autonomyRunning && (
+                    <>
+                      <div className="flex items-center justify-between p-2 bg-panel-dark rounded">
+                        <span className="text-xs text-text-muted">Interval:</span>
+                        <span className="text-xs font-medium text-text-primary">
+                          {autonomyStatus.interval_minutes} minutes
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between p-2 bg-panel-dark rounded">
+                        <span className="text-xs text-text-muted">Enabled Symbols:</span>
+                        <span className="text-xs font-medium text-text-primary">
+                          {autonomyStatus.enabled_symbols_count || 0}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between p-2 bg-panel-dark rounded">
+                        <span className="text-xs text-text-muted">Evaluations:</span>
+                        <span className="text-xs font-medium text-text-primary">
+                          {autonomyStatus.evaluation_count || 0}
+                        </span>
+                      </div>
+                      {autonomyStatus.next_run_time && (
+                        <div className="flex items-center justify-between p-2 bg-panel-dark rounded">
+                          <span className="text-xs text-text-muted">Next Run:</span>
+                          <span className="text-xs font-medium text-text-primary">
+                            {new Date(autonomyStatus.next_run_time).toLocaleTimeString()}
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Interval Configuration (when stopped) */}
+                  {!autonomyRunning && (
+                    <div>
+                      <label htmlFor="autonomy-interval" className="text-xs text-text-muted mb-1 block">
+                        Evaluation Interval (minutes)
+                      </label>
+                      <input
+                        id="autonomy-interval"
+                        type="number"
+                        min="5"
+                        max="120"
+                        value={autonomyInterval}
+                        onChange={(e) => setAutonomyInterval(parseInt(e.target.value) || 15)}
+                        className="w-full px-3 py-2 bg-panel-dark border border-border rounded text-sm text-text-primary"
+                      />
+                    </div>
+                  )}
+
+                  {/* Control Buttons */}
+                  <div className="flex gap-2">
+                    {!autonomyRunning ? (
+                      <Button
+                        onClick={handleStartAutonomy}
+                        disabled={loadingAutonomy}
+                        className="flex-1 flex items-center justify-center gap-2"
+                      >
+                        {loadingAutonomy ? (
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Play className="w-4 h-4" />
+                        )}
+                        Start Loop
+                      </Button>
+                    ) : (
+                      <>
+                        <Button
+                          onClick={handleStopAutonomy}
+                          disabled={loadingAutonomy}
+                          variant="destructive"
+                          className="flex-1 flex items-center justify-center gap-2"
+                        >
+                          {loadingAutonomy ? (
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Pause className="w-4 h-4" />
+                          )}
+                          Stop
+                        </Button>
+                        <Button
+                          onClick={handleEvaluateNow}
+                          disabled={loadingAutonomy}
+                          variant="outline"
+                          className="flex-1 flex items-center justify-center gap-2"
+                        >
+                          {loadingAutonomy ? (
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="w-4 h-4" />
+                          )}
+                          Evaluate Now
+                        </Button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Info Text */}
+                  <p className="text-xs text-text-muted">
+                    {autonomyRunning
+                      ? 'The autonomy loop will automatically evaluate all enabled symbols at the configured interval.'
+                      : 'Start the autonomy loop to enable automatic evaluation of enabled symbols.'}
+                  </p>
+                </div>
+              </div>
 
               {/* Manual Evaluation */}
               <div className="trading-panel mt-4">

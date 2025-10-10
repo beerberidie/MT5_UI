@@ -15,6 +15,7 @@ const EconomicCalendar: React.FC = () => {
   const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>([]);
   const [selectedImpact, setSelectedImpact] = useState<string>('');
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [configurationError, setConfigurationError] = useState<string | null>(null);
 
   const currencies = ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'NZD'];
   const impacts = ['high', 'medium', 'low'];
@@ -32,6 +33,7 @@ const EconomicCalendar: React.FC = () => {
 
   const loadEvents = async () => {
     setLoading(true);
+    setConfigurationError(null);
     try {
       const params: any = {
         from_date: fromDate,
@@ -49,7 +51,12 @@ const EconomicCalendar: React.FC = () => {
       const data = await getEconomicCalendar(params);
       setEvents(data.events);
     } catch (error: any) {
-      toast.error(`Failed to load economic calendar: ${error.message}`);
+      // Check if it's a configuration error (404)
+      if (error.message && error.message.includes('No active economic calendar integration')) {
+        setConfigurationError(error.message);
+      } else {
+        toast.error(`Failed to load economic calendar: ${error.message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -191,12 +198,35 @@ const EconomicCalendar: React.FC = () => {
         </div>
       </div>
 
+      {/* Configuration Error */}
+      {configurationError && (
+        <Alert className="mb-4 border-yellow-500/50 bg-yellow-500/10">
+          <AlertCircle className="w-4 h-4 text-yellow-500" />
+          <AlertDescription className="text-yellow-500">
+            <div className="font-medium mb-1">Economic Calendar Not Configured</div>
+            <div className="text-sm text-text-muted">
+              {configurationError}
+            </div>
+            <div className="text-sm text-text-muted mt-2">
+              Go to <strong>Settings → API Integrations</strong> to configure an Econdb API integration.
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Events List */}
       <div className="flex-1 overflow-auto">
         {loading && events.length === 0 ? (
           <div className="flex items-center justify-center h-64">
             <RefreshCw className="w-8 h-8 animate-spin text-primary" />
           </div>
+        ) : configurationError ? (
+          <Alert>
+            <AlertCircle className="w-4 h-4" />
+            <AlertDescription>
+              Please configure an Economic Calendar API integration in Settings to view events.
+            </AlertDescription>
+          </Alert>
         ) : events.length === 0 ? (
           <Alert>
             <AlertCircle className="w-4 h-4" />
