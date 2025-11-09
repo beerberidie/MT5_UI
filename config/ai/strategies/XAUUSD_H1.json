@@ -1,4 +1,8 @@
 {
+  "id": "XAUUSD_H1",
+  "name": "XAUUSD H1 Breakout Strategy",
+  "description": "Breakout strategy for Gold on H1 timeframe with strong momentum confirmation",
+  "enabled": true,
   "symbol": "XAUUSD",
   "timeframe": "H1",
   "sessions": ["London", "NewYork"],
@@ -43,7 +47,11 @@
     "news_embargo_minutes": 60,
     "invalidations": [
       "price_close_lt_ema_slow"
-    ]
-  }
+    ],
+    "max_risk_pct": 0.015
+  },
+  "created_at": "2025-10-28T10:00:00Z",
+  "updated_at": "2025-10-28T10:00:00Z",
+  "created_by": "system"
 }
 

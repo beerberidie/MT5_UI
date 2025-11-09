@@ -9,6 +9,9 @@ import Settings from "./pages/Settings";
 import AI from "./pages/AI";
 import Analysis from "./pages/Analysis";
 import Data from "./pages/Data";
+import DecisionHistory from "./pages/DecisionHistory";
+import TradeApproval from "./pages/TradeApproval";
+import StrategyManager from "./pages/StrategyManager";
 import { SettingsProvider } from "./lib/settings-context";
 
 const queryClient = new QueryClient();
@@ -25,6 +28,9 @@ const App = () => (
             <Route path="/ai" element={<AI />} />
             <Route path="/analysis" element={<Analysis />} />
             <Route path="/data" element={<Data />} />
+            <Route path="/decision-history" element={<DecisionHistory />} />
+            <Route path="/trade-approval" element={<TradeApproval />} />
+            <Route path="/strategy-manager" element={<StrategyManager />} />
             <Route path="/settings" element={<Settings />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

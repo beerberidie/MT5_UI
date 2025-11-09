@@ -19,6 +19,13 @@ from .risk import risk_limits, symbol_map, sessions_map
 from . import ai_routes
 from . import settings_routes
 from . import data_routes
+from . import monitoring_routes
+from . import celery_routes
+from . import decision_history_routes
+from . import trade_approval_routes
+from . import strategy_routes
+from .monitoring_middleware import MonitoringMiddleware
+from .monitoring import metrics_collector
 
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -35,13 +42,18 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# Add monitoring middleware
+app.add_middleware(MonitoringMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=FRONTEND_ORIGINS,
     allow_origin_regex=None,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "X-API-Key", "Authorization"]
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "X-API-Key", "Authorization", "Accept"],
+    expose_headers=["Content-Type", "X-Response-Time"],
+    max_age=3600
 )
 
 # Mount AI routes
@@ -52,6 +64,21 @@ app.include_router(settings_routes.router)
 
 # Mount Data routes
 app.include_router(data_routes.router)
+
+# Mount Monitoring routes
+app.include_router(monitoring_routes.router)
+
+# Mount Celery routes
+app.include_router(celery_routes.router)
+
+# Mount Decision History routes
+app.include_router(decision_history_routes.router)
+
+# Mount Trade Approval routes
+app.include_router(trade_approval_routes.router)
+
+# Mount Strategy Management routes
+app.include_router(strategy_routes.router)
 
 mt5 = MT5Client()
 
@@ -410,6 +437,9 @@ def health_check(request: Request):
         except Exception as e:
             mt5_error = str(e)
 
+        # Record MT5 status
+        metrics_collector.record_mt5_status(mt5_connected)
+
         # Check if we can access data directories
         data_accessible = os.path.exists(DATA_DIR) and os.path.exists(LOG_DIR)
 
@@ -582,12 +612,17 @@ def post_order(request: Request, req: OrderRequest):
     )
 
     if int(result.get("retcode", 0)) > 10000:
+        # Record successful order
+        metrics_collector.record_order(success=True)
+        metrics_collector.record_position_opened()
         return {
             "order": result.get("order"),
             "position": result.get("position"),
             "result_code": result.get("retcode"),
         }
     else:
+        # Record failed order
+        metrics_collector.record_order(success=False)
         return _error(
             409,
             "BROKER_REJECT",
@@ -855,6 +890,8 @@ def close_position(request: Request, ticket: int):
     try:
         result = mt5.position_close(ticket)
         if int(result.get("retcode", 0)) >= 10000:
+            # Record position closed
+            metrics_collector.record_position_closed()
             return {
                 "order": result.get("order"),
                 "result_code": result.get("retcode"),

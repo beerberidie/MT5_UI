@@ -15,7 +15,10 @@ import {
   Clock,
   Activity,
   X,
-  Database
+  Database,
+  History,
+  CheckSquare,
+  Layers
 } from 'lucide-react';
 import { getSymbols, getPrioritySymbols, getAccount, getPositions, postOrder, getHistoricalBars, getDeals, getOrdersHistory, getPendingOrders, createPendingOrder, cancelPendingOrder, modifyPendingOrder, closePosition } from '@/lib/api';
 import ErrorBoundary from './ErrorBoundary';
@@ -972,6 +975,18 @@ const TradingDashboard: React.FC = () => {
               <button id="nav-data" type="button" onClick={() => navigate('/data')} className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-sidebar-item-hover text-text-secondary text-sm">
                 <Database className="w-4 h-4" />
                 {!sidebarCollapsed && '3rd Party Data'}
+              </button>
+              <button id="nav-decision-history" type="button" onClick={() => navigate('/decision-history')} className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-sidebar-item-hover text-text-secondary text-sm">
+                <History className="w-4 h-4" />
+                {!sidebarCollapsed && 'Decision History'}
+              </button>
+              <button id="nav-trade-approval" type="button" onClick={() => navigate('/trade-approval')} className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-sidebar-item-hover text-text-secondary text-sm">
+                <CheckSquare className="w-4 h-4" />
+                {!sidebarCollapsed && 'Trade Approval'}
+              </button>
+              <button id="nav-strategy-manager" type="button" onClick={() => navigate('/strategy-manager')} className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-sidebar-item-hover text-text-secondary text-sm">
+                <Layers className="w-4 h-4" />
+                {!sidebarCollapsed && 'Strategy Manager'}
               </button>
               <button id="nav-settings" type="button" onClick={() => navigate('/settings')} className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-sidebar-item-hover text-text-secondary text-sm">
                 <Settings className="w-4 h-4" />

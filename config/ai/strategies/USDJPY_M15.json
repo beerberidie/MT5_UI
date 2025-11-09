@@ -1,0 +1,61 @@
+{
+  "id": "USDJPY_M15",
+  "name": "USDJPY M15 Scalping",
+  "description": "Fast scalping strategy for USDJPY on M15 timeframe during Tokyo session",
+  "enabled": true,
+  "symbol": "USDJPY",
+  "timeframe": "M15",
+  "sessions": ["Tokyo", "London"],
+  "indicators": {
+    "ema": {
+      "fast": 8,
+      "slow": 21
+    },
+    "rsi": {
+      "period": 9,
+      "overbought": 75,
+      "oversold": 25
+    },
+    "macd": {
+      "fast": 8,
+      "slow": 17,
+      "signal": 9
+    },
+    "atr": {
+      "period": 10,
+      "multiplier": 1.0
+    }
+  },
+  "conditions": {
+    "entry": [
+      "ema_fast_gt_slow",
+      "rsi_between_40_60",
+      "macd_bullish_cross"
+    ],
+    "exit": [
+      "rsi_gt_70",
+      "macd_bearish_cross"
+    ],
+    "strong": [
+      "macd_hist_gt_0",
+      "uptrend"
+    ],
+    "weak": [
+      "long_upper_wick",
+      "atr_below_median"
+    ]
+  },
+  "strategy": {
+    "direction": "both",
+    "min_rr": 1.5,
+    "news_embargo_minutes": 15,
+    "invalidations": [
+      "price_close_lt_ema_fast"
+    ],
+    "max_risk_pct": 0.005
+  },
+  "created_at": "2025-10-28T10:00:00Z",
+  "updated_at": "2025-10-28T10:00:00Z",
+  "created_by": "user"
+}
+

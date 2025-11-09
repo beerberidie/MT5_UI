@@ -11,8 +11,25 @@ python-multipart==0.0.20
 slowapi==0.1.9
 redis==5.0.1
 
+# Database (PostgreSQL)
+sqlalchemy[asyncio]==2.0.32
+asyncpg==0.29.0
+alembic==1.13.2
+psycopg2-binary==2.9.9
+
+# Background Jobs (Celery)
+celery==5.4.0
+celery[redis]==5.4.0
+
+# Authentication (JWT)
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# AI/LLM Integration
+openai==1.12.0
+
 # AI Trading dependencies
-pandas-ta>=0.3.14
+# pandas-ta>=0.3.14  # Not compatible with Python 3.11, using custom indicators instead
 schedule==1.2.0
 apscheduler==3.10.4
 jsonschema==4.19.0

@@ -1,0 +1,60 @@
+{
+  "id": "GBPUSD_H4",
+  "name": "GBPUSD H4 Mean Reversion",
+  "description": "Mean reversion strategy for GBPUSD on H4 timeframe targeting oversold/overbought conditions",
+  "enabled": false,
+  "symbol": "GBPUSD",
+  "timeframe": "H4",
+  "sessions": ["London"],
+  "indicators": {
+    "ema": {
+      "fast": 20,
+      "slow": 50
+    },
+    "rsi": {
+      "period": 14,
+      "overbought": 70,
+      "oversold": 30
+    },
+    "macd": {
+      "fast": 12,
+      "slow": 26,
+      "signal": 9
+    },
+    "atr": {
+      "period": 14,
+      "multiplier": 1.5
+    }
+  },
+  "conditions": {
+    "entry": [
+      "rsi_lt_30",
+      "price_below_ema_slow"
+    ],
+    "exit": [
+      "rsi_gt_70",
+      "price_above_ema_fast"
+    ],
+    "strong": [
+      "divergence_bullish",
+      "hammer"
+    ],
+    "weak": [
+      "downtrend",
+      "atr_expanding"
+    ]
+  },
+  "strategy": {
+    "direction": "long",
+    "min_rr": 2.0,
+    "news_embargo_minutes": 30,
+    "invalidations": [
+      "rsi_lt_20"
+    ],
+    "max_risk_pct": 0.01
+  },
+  "created_at": "2025-10-28T10:00:00Z",
+  "updated_at": "2025-10-28T10:00:00Z",
+  "created_by": "user"
+}
+

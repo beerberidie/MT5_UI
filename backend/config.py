@@ -24,6 +24,10 @@ for o in [
     "http://127.0.0.1:3000",
     "http://localhost:3010",
     "http://127.0.0.1:3010",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
 ]:
     if o not in FRONTEND_ORIGINS:
         FRONTEND_ORIGINS.append(o)

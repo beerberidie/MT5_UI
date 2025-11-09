@@ -1,23 +1,109 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
 .venv/
 .venv311/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment variables
 .env
+.env.local
+.env.production
+*.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Application specific
 logs/
 /data/
-
-# Security - Encryption keys
-config/.encryption_key
+*.log
 
 # Database files
 *.db
 *.db-journal
 *.db-wal
 *.db-shm
+*.sqlite
+*.sqlite3
 
-# Sensitive configuration files
+# Security - Encryption keys and credentials
+config/.encryption_key
 config/accounts.json
 config/api_integrations.json
+MT5_Demo_Acc_Details.txt
+*_credentials.txt
+*_password.txt
 
+# Redis dump
+dump.rdb
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# ZIP files
+*.zip
+
+# Executables
+*.exe
+*.msi
+
+# Node modules (if frontend is included)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Frontend build
+frontend/build/
+frontend/dist/
+
+# Alembic
+alembic/versions/*.pyc
