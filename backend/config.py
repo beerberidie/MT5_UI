@@ -41,4 +41,3 @@ AUGMENT_API_KEY = os.getenv("AUGMENT_API_KEY", "")
 # Validate critical paths exist or can be created
 for directory in [DATA_DIR, LOG_DIR, CONFIG_DIR]:
     Path(directory).mkdir(parents=True, exist_ok=True)
-

@@ -13,18 +13,18 @@ def test_evaluate_all_conditions_met():
         "rsi_between_40_60": True,
         "macd_hist_gt_0": True,
         "rsi_gt_70": False,
-        "long_upper_wick": False
+        "long_upper_wick": False,
     }
-    
+
     conditions = {
         "entry": ["ema_fast_gt_slow", "rsi_between_40_60"],
         "exit": ["rsi_gt_70"],
         "strong": ["macd_hist_gt_0"],
-        "weak": ["long_upper_wick"]
+        "weak": ["long_upper_wick"],
     }
-    
+
     result = evaluate_conditions(facts, conditions)
-    
+
     assert result["entry"] is True
     assert result["exit"] is False
     assert result["strong"] is True
@@ -36,18 +36,18 @@ def test_evaluate_partial_conditions():
     facts = {
         "ema_fast_gt_slow": True,
         "rsi_between_40_60": False,  # Entry condition not met
-        "macd_hist_gt_0": True
+        "macd_hist_gt_0": True,
     }
-    
+
     conditions = {
         "entry": ["ema_fast_gt_slow", "rsi_between_40_60"],
         "exit": [],
         "strong": ["macd_hist_gt_0"],
-        "weak": []
+        "weak": [],
     }
-    
+
     result = evaluate_conditions(facts, conditions)
-    
+
     assert result["entry"] is False  # One condition failed
     assert result["strong"] is True
 
@@ -55,16 +55,11 @@ def test_evaluate_partial_conditions():
 def test_evaluate_empty_conditions():
     """Test when no conditions are specified."""
     facts = {"ema_fast_gt_slow": True}
-    
-    conditions = {
-        "entry": [],
-        "exit": [],
-        "strong": [],
-        "weak": []
-    }
-    
+
+    conditions = {"entry": [], "exit": [], "strong": [], "weak": []}
+
     result = evaluate_conditions(facts, conditions)
-    
+
     # All should be False when no conditions specified
     assert result["entry"] is False
     assert result["exit"] is False
@@ -78,16 +73,16 @@ def test_evaluate_missing_facts():
         "ema_fast_gt_slow": True
         # rsi_between_40_60 is missing
     }
-    
+
     conditions = {
         "entry": ["ema_fast_gt_slow", "rsi_between_40_60"],
         "exit": [],
         "strong": [],
-        "weak": []
+        "weak": [],
     }
-    
+
     result = evaluate_conditions(facts, conditions)
-    
+
     # Should be False because one fact is missing
     assert result["entry"] is False
 
@@ -98,9 +93,9 @@ def test_validate_conditions_valid():
         "entry": ["ema_fast_gt_slow", "rsi_between_40_60"],
         "exit": ["rsi_gt_70"],
         "strong": ["macd_hist_gt_0"],
-        "weak": ["long_upper_wick"]
+        "weak": ["long_upper_wick"],
     }
-    
+
     assert validate_conditions(conditions) is True
 
 
@@ -109,10 +104,10 @@ def test_validate_conditions_missing_key():
     conditions = {
         "entry": ["ema_fast_gt_slow"],
         "exit": [],
-        "strong": []
+        "strong": [],
         # "weak" is missing
     }
-    
+
     assert validate_conditions(conditions) is False
 
 
@@ -122,9 +117,9 @@ def test_validate_conditions_invalid_type():
         "entry": "ema_fast_gt_slow",  # Should be a list
         "exit": [],
         "strong": [],
-        "weak": []
+        "weak": [],
     }
-    
+
     assert validate_conditions(conditions) is False
 
 
@@ -134,9 +129,9 @@ def test_validate_conditions_invalid_list_items():
         "entry": ["ema_fast_gt_slow", 123],  # 123 is not a string
         "exit": [],
         "strong": [],
-        "weak": []
+        "weak": [],
     }
-    
+
     assert validate_conditions(conditions) is False
 
 
@@ -149,20 +144,19 @@ def test_evaluate_complex_scenario():
         "atr_above_median": True,
         "price_above_ema_fast": True,
         "rsi_gt_70": False,
-        "long_upper_wick": True  # Weak signal present
+        "long_upper_wick": True,  # Weak signal present
     }
-    
+
     conditions = {
         "entry": ["ema_fast_gt_slow", "rsi_between_40_60", "price_above_ema_fast"],
         "exit": ["rsi_gt_70"],
         "strong": ["macd_hist_gt_0", "atr_above_median"],
-        "weak": ["long_upper_wick"]
+        "weak": ["long_upper_wick"],
     }
-    
+
     result = evaluate_conditions(facts, conditions)
-    
+
     assert result["entry"] is True  # All entry conditions met
     assert result["exit"] is False  # Exit condition not met
     assert result["strong"] is True  # All strong conditions met
     assert result["weak"] is True  # Weak signal present
-

@@ -10,14 +10,14 @@ This package contains Celery tasks for:
 from backend.tasks.ai_tasks import (
     evaluate_all_strategies,
     evaluate_single_symbol,
-    backtest_strategy
+    backtest_strategy,
 )
 
 from backend.tasks.data_tasks import (
     collect_market_data,
     update_economic_calendar,
     collect_rss_news,
-    update_symbol_info
+    update_symbol_info,
 )
 
 from backend.tasks.maintenance_tasks import (
@@ -25,7 +25,7 @@ from backend.tasks.maintenance_tasks import (
     cleanup_cache,
     archive_old_trades,
     system_health_check,
-    optimize_csv_files
+    optimize_csv_files,
 )
 
 __all__ = [
@@ -33,13 +33,11 @@ __all__ = [
     "evaluate_all_strategies",
     "evaluate_single_symbol",
     "backtest_strategy",
-    
     # Data tasks
     "collect_market_data",
     "update_economic_calendar",
     "collect_rss_news",
     "update_symbol_info",
-    
     # Maintenance tasks
     "cleanup_old_logs",
     "cleanup_cache",
@@ -47,4 +45,3 @@ __all__ = [
     "system_health_check",
     "optimize_csv_files",
 ]
-

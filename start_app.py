@@ -18,12 +18,23 @@ STATIC_DIR = TRADECRAFT_DIST if TRADECRAFT_DIST.exists() else LEGACY_FRONTEND
 
 
 BACKEND_CMD = [
-    str(VENV_PY), "-m", "uvicorn", "backend.app:app",
-    "--host", "127.0.0.1", "--port", "5001", "--reload",
+    str(VENV_PY),
+    "-m",
+    "uvicorn",
+    "backend.app:app",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "5001",
+    "--reload",
 ]
 # Use custom SPA server that serves index.html for all routes
 FRONTEND_CMD = [
-    str(VENV_PY), str(ROOT / "spa_server.py"), "3000", "-d", str(STATIC_DIR)
+    str(VENV_PY),
+    str(ROOT / "spa_server.py"),
+    "3000",
+    "-d",
+    str(STATIC_DIR),
 ]
 
 WIN = os.name == "nt"
@@ -49,11 +60,18 @@ def spawn(name: str, cmd: list[str], cwd: Path) -> subprocess.Popen:
         return proc
     except FileNotFoundError as e:
         print(f"ERROR starting {name}: {e}")
-        print("Hint: Ensure the .venv311 virtual environment exists and dependencies are installed.")
+        print(
+            "Hint: Ensure the .venv311 virtual environment exists and dependencies are installed."
+        )
         raise
 
 
-def stream_output(name: str, proc: subprocess.Popen, ready_event: threading.Event | None, ready_patterns: tuple[str, ...]):
+def stream_output(
+    name: str,
+    proc: subprocess.Popen,
+    ready_event: threading.Event | None,
+    ready_patterns: tuple[str, ...],
+):
     try:
         assert proc.stdout is not None
         for line in proc.stdout:
@@ -87,10 +105,11 @@ def graceful_kill(proc: subprocess.Popen, name: str, timeout: float = 5.0):
 def check_prereqs() -> None:
     if not VENV_PY.exists():
         print(f"ERROR: Could not find Python 3.11 virtualenv interpreter at: {VENV_PY}")
-        print("Create it with: 'C:\\Program Files\\Python311\\python.exe -m venv .venv311' and install pinned deps.")
+        print(
+            "Create it with: 'C:\\Program Files\\Python311\\python.exe -m venv .venv311' and install pinned deps."
+        )
         sys.exit(1)
     print(f"Serving frontend from: {STATIC_DIR}")
-
 
 
 def main(open_browser: bool = True) -> int:
@@ -103,7 +122,12 @@ def main(open_browser: bool = True) -> int:
     be_proc = spawn("backend", BACKEND_CMD, ROOT)
     be_thread = threading.Thread(
         target=stream_output,
-        args=("backend", be_proc, be_ready, ("Application startup complete", "Uvicorn running")),
+        args=(
+            "backend",
+            be_proc,
+            be_ready,
+            ("Application startup complete", "Uvicorn running"),
+        ),
         daemon=True,
     )
     be_thread.start()
@@ -125,6 +149,7 @@ def main(open_browser: bool = True) -> int:
     # Frontend readiness via HTTP polling
     def _poll_frontend(timeout: float = 20.0) -> bool:
         import urllib.request, urllib.error
+
         t0 = time.time()
         while time.time() - t0 < timeout:
             try:
@@ -141,12 +166,16 @@ def main(open_browser: bool = True) -> int:
     if be_ready.is_set():
         print("Backend is up: http://127.0.0.1:5001")
     else:
-        print("WARN: backend did not report ready within timeout; it may still be starting.")
+        print(
+            "WARN: backend did not report ready within timeout; it may still be starting."
+        )
 
     if fe_ok:
         print("Frontend is up: http://127.0.0.1:3000")
     else:
-        print("WARN: frontend did not report ready within timeout; it may still be starting.")
+        print(
+            "WARN: frontend did not report ready within timeout; it may still be starting."
+        )
 
     if open_browser and fe_ok:
         try:
@@ -179,5 +208,3 @@ def main(open_browser: bool = True) -> int:
 
 if __name__ == "__main__":
     sys.exit(main(open_browser=True))
-
-

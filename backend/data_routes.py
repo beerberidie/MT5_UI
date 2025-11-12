@@ -24,8 +24,10 @@ router = APIRouter(prefix="/api/data", tags=["3rd Party Data"])
 
 # ==================== MODELS ====================
 
+
 class EconomicEvent(BaseModel):
     """Model for economic calendar event."""
+
     id: str
     time: str
     currency: str
@@ -38,6 +40,7 @@ class EconomicEvent(BaseModel):
 
 class EconomicCalendarResponse(BaseModel):
     """Response model for economic calendar."""
+
     events: List[EconomicEvent]
     total: int
     from_date: str
@@ -46,6 +49,7 @@ class EconomicCalendarResponse(BaseModel):
 
 class NewsArticle(BaseModel):
     """Model for news article."""
+
     id: str
     title: str
     description: Optional[str] = None
@@ -58,6 +62,7 @@ class NewsArticle(BaseModel):
 
 class NewsResponse(BaseModel):
     """Response model for news articles."""
+
     articles: List[NewsArticle]
     total: int
     page: int
@@ -66,6 +71,7 @@ class NewsResponse(BaseModel):
 
 class RSSFeed(BaseModel):
     """Model for RSS feed configuration."""
+
     id: str
     name: str
     url: str
@@ -77,6 +83,7 @@ class RSSFeed(BaseModel):
 
 class RSSArticle(BaseModel):
     """Model for RSS article."""
+
     id: str
     feed_id: str
     feed_name: str
@@ -88,6 +95,7 @@ class RSSArticle(BaseModel):
 
 class IndicatorData(BaseModel):
     """Model for technical indicator data."""
+
     symbol: str
     timeframe: str
     timestamp: str
@@ -96,15 +104,19 @@ class IndicatorData(BaseModel):
 
 # ==================== HELPER FUNCTIONS ====================
 
+
 async def _get_integration_by_type(integration_type: str) -> Optional[Dict[str, Any]]:
     """Get API integration configuration by type."""
     storage = get_storage()
     integrations = await storage.get_api_integrations()
-    
+
     for integration in integrations:
-        if integration.get("type") == integration_type and integration.get("status") == "active":
+        if (
+            integration.get("type") == integration_type
+            and integration.get("status") == "active"
+        ):
             return integration
-    
+
     return None
 
 
@@ -114,35 +126,32 @@ async def _fetch_econdb_events(
     from_date: str,
     to_date: str,
     currencies: Optional[List[str]] = None,
-    impact: Optional[str] = None
+    impact: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Fetch economic events from Econdb API."""
     try:
         # Econdb API endpoint for economic calendar
         url = f"{base_url}/calendar"
-        
-        params = {
-            "from": from_date,
-            "to": to_date
-        }
-        
+
+        params = {"from": from_date, "to": to_date}
+
         if currencies:
             params["currencies"] = ",".join(currencies)
-        
+
         if impact:
             params["impact"] = impact
-        
+
         headers = {"Authorization": f"Bearer {api_key}"}
-        
+
         response = requests.get(url, params=params, headers=headers, timeout=15)
-        
+
         if response.status_code == 200:
             data = response.json()
             return data.get("events", [])
         else:
             logger.error(f"Econdb API error: {response.status_code} - {response.text}")
             return []
-    
+
     except Exception as e:
         logger.error(f"Error fetching Econdb events: {str(e)}")
         return []
@@ -154,58 +163,48 @@ async def _fetch_news_articles(
     category: Optional[str] = None,
     query: Optional[str] = None,
     page: int = 1,
-    page_size: int = 20
+    page_size: int = 20,
 ) -> Dict[str, Any]:
     """Fetch news articles from NewsAPI or Finnhub."""
     try:
         if "newsapi" in base_url.lower():
             # NewsAPI
             url = f"{base_url}/top-headlines" if not query else f"{base_url}/everything"
-            
-            params = {
-                "apiKey": api_key,
-                "pageSize": page_size,
-                "page": page
-            }
-            
+
+            params = {"apiKey": api_key, "pageSize": page_size, "page": page}
+
             if category and not query:
                 params["category"] = category
-            
+
             if query:
                 params["q"] = query
             else:
                 params["category"] = category or "business"
-            
+
             response = requests.get(url, params=params, timeout=15)
-            
+
             if response.status_code == 200:
                 data = response.json()
                 return {
                     "articles": data.get("articles", []),
-                    "total": data.get("totalResults", 0)
+                    "total": data.get("totalResults", 0),
                 }
-        
+
         else:
             # Finnhub
             url = f"{base_url}/news"
-            
-            params = {
-                "token": api_key,
-                "category": category or "forex"
-            }
-            
+
+            params = {"token": api_key, "category": category or "forex"}
+
             response = requests.get(url, params=params, timeout=15)
-            
+
             if response.status_code == 200:
                 articles = response.json()
-                return {
-                    "articles": articles,
-                    "total": len(articles)
-                }
-        
+                return {"articles": articles, "total": len(articles)}
+
         logger.error(f"News API error: {response.status_code} - {response.text}")
         return {"articles": [], "total": 0}
-    
+
     except Exception as e:
         logger.error(f"Error fetching news articles: {str(e)}")
         return {"articles": [], "total": 0}
@@ -213,88 +212,97 @@ async def _fetch_news_articles(
 
 # ==================== ECONOMIC CALENDAR ROUTES ====================
 
+
 @router.get("/economic-calendar", response_model=EconomicCalendarResponse)
 async def get_economic_calendar(
     request: Request,
     from_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     to_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
-    currencies: Optional[str] = Query(None, description="Comma-separated currency codes (e.g., USD,EUR,GBP)"),
-    impact: Optional[str] = Query(None, description="Impact level: high, medium, low")
+    currencies: Optional[str] = Query(
+        None, description="Comma-separated currency codes (e.g., USD,EUR,GBP)"
+    ),
+    impact: Optional[str] = Query(None, description="Impact level: high, medium, low"),
 ):
     """
     Get economic calendar events.
-    
+
     Fetches events from Econdb API integration configured in settings.
     """
     try:
         # Get Econdb integration
         integration = await _get_integration_by_type("economic_calendar")
-        
+
         if not integration:
             raise HTTPException(
                 status_code=404,
-                detail="No active economic calendar integration found. Please configure Econdb API in Settings."
+                detail="No active economic calendar integration found. Please configure Econdb API in Settings.",
             )
-        
+
         # Default date range: today to 7 days ahead
         if not from_date:
             from_date = datetime.utcnow().strftime("%Y-%m-%d")
         if not to_date:
             to_date = (datetime.utcnow() + timedelta(days=7)).strftime("%Y-%m-%d")
-        
+
         # Parse currencies
         currency_list = currencies.split(",") if currencies else None
-        
+
         # Fetch events
         api_key = integration.get("api_key", "")
         base_url = integration.get("base_url", "https://www.econdb.com/api")
-        
+
         events_data = await _fetch_econdb_events(
             api_key=api_key,
             base_url=base_url,
             from_date=from_date,
             to_date=to_date,
             currencies=currency_list,
-            impact=impact
+            impact=impact,
         )
-        
+
         # Transform to response model
         events = []
         for event in events_data:
-            events.append(EconomicEvent(
-                id=event.get("id", str(hash(event.get("event", "") + event.get("time", "")))),
-                time=event.get("time", ""),
-                currency=event.get("currency", ""),
-                event=event.get("event", ""),
-                impact=event.get("impact", "medium"),
-                forecast=event.get("forecast"),
-                previous=event.get("previous"),
-                actual=event.get("actual")
-            ))
-        
+            events.append(
+                EconomicEvent(
+                    id=event.get(
+                        "id", str(hash(event.get("event", "") + event.get("time", "")))
+                    ),
+                    time=event.get("time", ""),
+                    currency=event.get("currency", ""),
+                    event=event.get("event", ""),
+                    impact=event.get("impact", "medium"),
+                    forecast=event.get("forecast"),
+                    previous=event.get("previous"),
+                    actual=event.get("actual"),
+                )
+            )
+
         return EconomicCalendarResponse(
-            events=events,
-            total=len(events),
-            from_date=from_date,
-            to_date=to_date
+            events=events, total=len(events), from_date=from_date, to_date=to_date
         )
-    
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error in get_economic_calendar: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch economic calendar: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch economic calendar: {str(e)}"
+        )
 
 
 # ==================== MARKET NEWS ROUTES ====================
 
+
 @router.get("/news", response_model=NewsResponse)
 async def get_news(
     request: Request,
-    category: Optional[str] = Query(None, description="News category (business, forex, crypto, etc.)"),
+    category: Optional[str] = Query(
+        None, description="News category (business, forex, crypto, etc.)"
+    ),
     query: Optional[str] = Query(None, description="Search query"),
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(20, ge=1, le=100, description="Items per page")
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
 ):
     """
     Get market news articles.
@@ -308,7 +316,7 @@ async def get_news(
         if not integration:
             raise HTTPException(
                 status_code=404,
-                detail="No active news integration found. Please configure NewsAPI or Finnhub in Settings."
+                detail="No active news integration found. Please configure NewsAPI or Finnhub in Settings.",
             )
 
         # Fetch articles
@@ -321,7 +329,7 @@ async def get_news(
             category=category,
             query=query,
             page=page,
-            page_size=page_size
+            page_size=page_size,
         )
 
         # Transform to response model
@@ -330,34 +338,44 @@ async def get_news(
             # Handle both NewsAPI and Finnhub formats
             if "newsapi" in base_url.lower():
                 # NewsAPI format
-                articles.append(NewsArticle(
-                    id=str(hash(article.get("url", "") + str(idx))),
-                    title=article.get("title", ""),
-                    description=article.get("description"),
-                    source=article.get("source", {}).get("name", "Unknown"),
-                    url=article.get("url", ""),
-                    published_at=article.get("publishedAt", ""),
-                    image_url=article.get("urlToImage"),
-                    category=category
-                ))
+                articles.append(
+                    NewsArticle(
+                        id=str(hash(article.get("url", "") + str(idx))),
+                        title=article.get("title", ""),
+                        description=article.get("description"),
+                        source=article.get("source", {}).get("name", "Unknown"),
+                        url=article.get("url", ""),
+                        published_at=article.get("publishedAt", ""),
+                        image_url=article.get("urlToImage"),
+                        category=category,
+                    )
+                )
             else:
                 # Finnhub format
-                articles.append(NewsArticle(
-                    id=str(article.get("id", idx)),
-                    title=article.get("headline", ""),
-                    description=article.get("summary"),
-                    source=article.get("source", "Finnhub"),
-                    url=article.get("url", ""),
-                    published_at=datetime.fromtimestamp(article.get("datetime", 0)).isoformat() if article.get("datetime") else "",
-                    image_url=article.get("image"),
-                    category=article.get("category")
-                ))
+                articles.append(
+                    NewsArticle(
+                        id=str(article.get("id", idx)),
+                        title=article.get("headline", ""),
+                        description=article.get("summary"),
+                        source=article.get("source", "Finnhub"),
+                        url=article.get("url", ""),
+                        published_at=(
+                            datetime.fromtimestamp(
+                                article.get("datetime", 0)
+                            ).isoformat()
+                            if article.get("datetime")
+                            else ""
+                        ),
+                        image_url=article.get("image"),
+                        category=article.get("category"),
+                    )
+                )
 
         return NewsResponse(
             articles=articles,
             total=result.get("total", len(articles)),
             page=page,
-            page_size=page_size
+            page_size=page_size,
         )
 
     except HTTPException:
@@ -369,6 +387,7 @@ async def get_news(
 
 # ==================== RSS FEED ROUTES ====================
 
+
 @router.get("/rss/feeds")
 async def get_rss_feeds(request: Request):
     """Get all configured RSS feeds."""
@@ -378,7 +397,9 @@ async def get_rss_feeds(request: Request):
         return {"feeds": feeds}
     except Exception as e:
         logger.error(f"Error in get_rss_feeds: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch RSS feeds: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch RSS feeds: {str(e)}"
+        )
 
 
 @router.post("/rss/feeds")
@@ -386,16 +407,14 @@ async def add_rss_feed(
     request: Request,
     name: str = Query(..., description="Feed name"),
     url: str = Query(..., description="Feed URL"),
-    category: Optional[str] = Query(None, description="Feed category")
+    category: Optional[str] = Query(None, description="Feed category"),
 ):
     """Add a new RSS feed."""
     try:
         storage = get_storage()
-        feed = await storage.add_rss_feed({
-            "name": name,
-            "url": url,
-            "category": category
-        })
+        feed = await storage.add_rss_feed(
+            {"name": name, "url": url, "category": category}
+        )
         return feed
     except Exception as e:
         logger.error(f"Error in add_rss_feed: {str(e)}")
@@ -415,14 +434,16 @@ async def delete_rss_feed(request: Request, feed_id: str):
         raise
     except Exception as e:
         logger.error(f"Error in delete_rss_feed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to delete RSS feed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete RSS feed: {str(e)}"
+        )
 
 
 @router.get("/rss/articles")
 async def get_rss_articles(
     request: Request,
     feed_id: Optional[str] = Query(None, description="Filter by feed ID"),
-    limit: int = Query(50, ge=1, le=200, description="Maximum articles to return")
+    limit: int = Query(50, ge=1, le=200, description="Maximum articles to return"),
 ):
     """Get articles from RSS feeds."""
     try:
@@ -446,20 +467,26 @@ async def get_rss_articles(
                 parsed = feedparser.parse(feed.get("url", ""))
 
                 for entry in parsed.entries[:limit]:
-                    all_articles.append({
-                        "id": entry.get("id", entry.get("link", "")),
-                        "feed_id": feed.get("id", ""),
-                        "feed_name": feed.get("name", ""),
-                        "title": entry.get("title", ""),
-                        "summary": entry.get("summary", entry.get("description", "")),
-                        "link": entry.get("link", ""),
-                        "published": entry.get("published", entry.get("updated", ""))
-                    })
+                    all_articles.append(
+                        {
+                            "id": entry.get("id", entry.get("link", "")),
+                            "feed_id": feed.get("id", ""),
+                            "feed_name": feed.get("name", ""),
+                            "title": entry.get("title", ""),
+                            "summary": entry.get(
+                                "summary", entry.get("description", "")
+                            ),
+                            "link": entry.get("link", ""),
+                            "published": entry.get(
+                                "published", entry.get("updated", "")
+                            ),
+                        }
+                    )
 
                 # Update last_fetched timestamp
-                await storage.update_rss_feed(feed.get("id"), {
-                    "last_fetched": datetime.utcnow().isoformat()
-                })
+                await storage.update_rss_feed(
+                    feed.get("id"), {"last_fetched": datetime.utcnow().isoformat()}
+                )
 
             except Exception as e:
                 logger.error(f"Error parsing feed {feed.get('name')}: {str(e)}")
@@ -472,16 +499,21 @@ async def get_rss_articles(
 
     except Exception as e:
         logger.error(f"Error in get_rss_articles: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch RSS articles: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch RSS articles: {str(e)}"
+        )
 
 
 # ==================== TECHNICAL INDICATORS ROUTES ====================
+
 
 @router.get("/indicators/{symbol}")
 async def get_indicators(
     request: Request,
     symbol: str,
-    timeframe: str = Query("H1", description="Timeframe (M1, M5, M15, M30, H1, H4, D1)")
+    timeframe: str = Query(
+        "H1", description="Timeframe (M1, M5, M15, M30, H1, H4, D1)"
+    ),
 ):
     """
     Get technical indicator data for a symbol.
@@ -498,7 +530,9 @@ async def get_indicators(
         bars = mt5.get_bars(symbol, timeframe, count=200)
 
         if not bars or len(bars) == 0:
-            raise HTTPException(status_code=404, detail=f"No data available for {symbol}")
+            raise HTTPException(
+                status_code=404, detail=f"No data available for {symbol}"
+            )
 
         # Calculate indicators
         indicators = calculate_indicators(bars)
@@ -507,12 +541,13 @@ async def get_indicators(
             symbol=symbol,
             timeframe=timeframe,
             timestamp=datetime.utcnow().isoformat(),
-            indicators=indicators
+            indicators=indicators,
         )
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error in get_indicators: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch indicators: {str(e)}")
-
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch indicators: {str(e)}"
+        )

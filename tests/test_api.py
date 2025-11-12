@@ -29,7 +29,14 @@ def test_positions_with_fake_mt5(client):
 
 
 def test_order_success(client):
-    payload = {"canonical": "EURUSD", "side": "buy", "volume": 0.01, "deviation": 10, "comment": "t", "magic": 1}
+    payload = {
+        "canonical": "EURUSD",
+        "side": "buy",
+        "volume": 0.01,
+        "deviation": 10,
+        "comment": "t",
+        "magic": 1,
+    }
     r = client.post("/api/order", json=payload)
     assert r.status_code == 200
     body = r.json()
@@ -38,10 +45,15 @@ def test_order_success(client):
 
 def test_cors_preflight(client):
     # Test OPTIONS preflight
-    r = client.options("/api/health", headers={
-        "Origin": "http://127.0.0.1:3000",
-        "Access-Control-Request-Method": "GET",
-    })
+    r = client.options(
+        "/api/health",
+        headers={
+            "Origin": "http://127.0.0.1:3000",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
     assert r.status_code in (200, 204)
-    assert r.headers.get("access-control-allow-origin") in ("*", "http://127.0.0.1:3000")
-
+    assert r.headers.get("access-control-allow-origin") in (
+        "*",
+        "http://127.0.0.1:3000",
+    )

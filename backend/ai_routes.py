@@ -23,7 +23,7 @@ from backend.models import (
     AIStatusResponse,
     EnableAIRequest,
     KillSwitchRequest,
-    TradeIdea
+    TradeIdea,
 )
 from backend.ai.engine import AIEngine
 from backend.ai.ai_logger import get_decisions, get_decision_stats
@@ -66,48 +66,44 @@ def get_executor() -> TradeIdeaExecutor:
 
 @router.post("/evaluate/{symbol}", response_model=EvaluateResponse)
 async def evaluate_symbol(
-    symbol: str,
-    request: EvaluateRequest,
-    engine: AIEngine = Depends(get_ai_engine)
+    symbol: str, request: EvaluateRequest, engine: AIEngine = Depends(get_ai_engine)
 ):
     """
     Manually trigger AI evaluation for a symbol.
-    
+
     Args:
         symbol: Trading symbol (e.g., "EURUSD")
         request: Evaluation request with timeframe and force flag
-        
+
     Returns:
         EvaluateResponse with trade idea and confidence
     """
     try:
         logger.info(f"Manual evaluation requested for {symbol} {request.timeframe}")
-        
+
         # Evaluate symbol
         trade_idea = engine.evaluate(
-            symbol=symbol,
-            timeframe=request.timeframe,
-            force=request.force
+            symbol=symbol, timeframe=request.timeframe, force=request.force
         )
-        
+
         if trade_idea:
             # Add to active trade ideas
             _active_trade_ideas.append(trade_idea)
-            
+
             return EvaluateResponse(
                 trade_idea=trade_idea,
                 confidence=trade_idea.confidence,
                 action=trade_idea.execution_plan.action,
-                message=f"Trade idea generated with {trade_idea.confidence}% confidence"
+                message=f"Trade idea generated with {trade_idea.confidence}% confidence",
             )
         else:
             return EvaluateResponse(
                 trade_idea=None,
                 confidence=0,
                 action="observe",
-                message="No trade idea generated - conditions not met"
+                message="No trade idea generated - conditions not met",
             )
-            
+
     except Exception as e:
         logger.error(f"Error evaluating {symbol}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -130,7 +126,7 @@ async def get_ai_status(engine: AIEngine = Depends(get_ai_engine)):
             mode=engine.settings.get("mode", "semi-auto"),
             enabled_symbols=list(_enabled_symbols.keys()),
             active_trade_ideas=len(_active_trade_ideas),
-            autonomy_loop_running=autonomy_running
+            autonomy_loop_running=autonomy_running,
         )
     except Exception as e:
         logger.error(f"Error getting AI status: {e}", exc_info=True)
@@ -139,17 +135,15 @@ async def get_ai_status(engine: AIEngine = Depends(get_ai_engine)):
 
 @router.post("/enable/{symbol}")
 async def enable_ai_for_symbol(
-    symbol: str,
-    request: EnableAIRequest,
-    engine: AIEngine = Depends(get_ai_engine)
+    symbol: str, request: EnableAIRequest, engine: AIEngine = Depends(get_ai_engine)
 ):
     """
     Enable AI trading for a specific symbol.
-    
+
     Args:
         symbol: Trading symbol to enable
         request: Configuration for AI (timeframe, auto_execute)
-        
+
     Returns:
         Success message
     """
@@ -157,15 +151,17 @@ async def enable_ai_for_symbol(
         _enabled_symbols[symbol] = {
             "timeframe": request.timeframe,
             "auto_execute": request.auto_execute,
-            "enabled_at": datetime.now().isoformat()
+            "enabled_at": datetime.now().isoformat(),
         }
-        
-        logger.info(f"AI enabled for {symbol} on {request.timeframe} (auto_execute={request.auto_execute})")
-        
+
+        logger.info(
+            f"AI enabled for {symbol} on {request.timeframe} (auto_execute={request.auto_execute})"
+        )
+
         return {
             "success": True,
             "message": f"AI enabled for {symbol}",
-            "config": _enabled_symbols[symbol]
+            "config": _enabled_symbols[symbol],
         }
     except Exception as e:
         logger.error(f"Error enabling AI for {symbol}: {e}", exc_info=True)
@@ -176,10 +172,10 @@ async def enable_ai_for_symbol(
 async def disable_ai_for_symbol(symbol: str):
     """
     Disable AI trading for a specific symbol.
-    
+
     Args:
         symbol: Trading symbol to disable
-        
+
     Returns:
         Success message
     """
@@ -199,8 +195,7 @@ async def disable_ai_for_symbol(symbol: str):
 
 @router.post("/kill-switch")
 async def emergency_kill_switch(
-    request: KillSwitchRequest,
-    engine: AIEngine = Depends(get_ai_engine)
+    request: KillSwitchRequest, engine: AIEngine = Depends(get_ai_engine)
 ):
     """
     Emergency kill switch - immediately disable all AI trading.
@@ -232,7 +227,7 @@ async def emergency_kill_switch(
             "success": True,
             "message": "AI trading disabled globally",
             "reason": request.reason,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
     except Exception as e:
         logger.error(f"Error activating kill switch: {e}", exc_info=True)
@@ -243,10 +238,10 @@ async def emergency_kill_switch(
 # Autonomy Loop Endpoints
 # ============================================================================
 
+
 @router.post("/autonomy/start")
 async def start_autonomy_loop(
-    interval_minutes: int = 15,
-    engine: AIEngine = Depends(get_ai_engine)
+    interval_minutes: int = 15, engine: AIEngine = Depends(get_ai_engine)
 ):
     """
     Start the AI autonomy loop for automated evaluation.
@@ -270,14 +265,19 @@ async def start_autonomy_loop(
                     timeframe = config.get("timeframe", "H1")
 
                     # Evaluate symbol
-                    trade_idea = engine.evaluate(symbol=symbol, timeframe=timeframe, force=False)
+                    trade_idea = engine.evaluate(
+                        symbol=symbol, timeframe=timeframe, force=False
+                    )
 
                     if trade_idea:
                         # Add to active trade ideas
                         _active_trade_ideas.append(trade_idea)
 
                         # Auto-execute if configured
-                        if config.get("auto_execute", False) and engine.settings.get("mode") == "full-auto":
+                        if (
+                            config.get("auto_execute", False)
+                            and engine.settings.get("mode") == "full-auto"
+                        ):
                             executor = get_executor()
                             if executor:
                                 executor.execute(trade_idea)
@@ -285,21 +285,20 @@ async def start_autonomy_loop(
                         return {
                             "success": True,
                             "trade_idea": trade_idea.model_dump(),
-                            "message": f"Trade idea generated with {trade_idea.confidence}% confidence"
+                            "message": f"Trade idea generated with {trade_idea.confidence}% confidence",
                         }
                     else:
                         return {
                             "success": True,
                             "trade_idea": None,
-                            "message": "No trade idea generated - conditions not met"
+                            "message": "No trade idea generated - conditions not met",
                         }
 
                 except Exception as e:
-                    logger.error(f"Error in evaluation callback for {symbol}: {e}", exc_info=True)
-                    return {
-                        "success": False,
-                        "message": str(e)
-                    }
+                    logger.error(
+                        f"Error in evaluation callback for {symbol}: {e}", exc_info=True
+                    )
+                    return {"success": False, "message": str(e)}
 
             # Create enabled symbols callback
             def enabled_symbols_callback() -> Dict[str, bool]:
@@ -310,7 +309,7 @@ async def start_autonomy_loop(
             autonomy_loop = AutonomyLoop(
                 evaluation_callback=evaluation_callback,
                 enabled_symbols_callback=enabled_symbols_callback,
-                timezone=engine.settings.get("timezone", "Africa/Johannesburg")
+                timezone=engine.settings.get("timezone", "Africa/Johannesburg"),
             )
             set_autonomy_loop(autonomy_loop)
 
@@ -336,10 +335,7 @@ async def stop_autonomy_loop():
         autonomy_loop = get_autonomy_loop()
 
         if autonomy_loop is None:
-            return {
-                "success": False,
-                "message": "Autonomy loop not initialized"
-            }
+            return {"success": False, "message": "Autonomy loop not initialized"}
 
         result = autonomy_loop.stop()
 
@@ -362,10 +358,7 @@ async def get_autonomy_status():
         autonomy_loop = get_autonomy_loop()
 
         if autonomy_loop is None:
-            return {
-                "running": False,
-                "message": "Autonomy loop not initialized"
-            }
+            return {"running": False, "message": "Autonomy loop not initialized"}
 
         status = autonomy_loop.get_status()
 
@@ -388,10 +381,7 @@ async def trigger_immediate_evaluation():
         autonomy_loop = get_autonomy_loop()
 
         if autonomy_loop is None:
-            return {
-                "success": False,
-                "message": "Autonomy loop not initialized"
-            }
+            return {"success": False, "message": "Autonomy loop not initialized"}
 
         result = autonomy_loop.evaluate_now()
 
@@ -406,15 +396,15 @@ async def trigger_immediate_evaluation():
 async def get_recent_decisions(
     symbol: Optional[str] = None,
     limit: int = 50,
-    engine: AIEngine = Depends(get_ai_engine)
+    engine: AIEngine = Depends(get_ai_engine),
 ):
     """
     Get recent AI decisions from logs.
-    
+
     Args:
         symbol: Filter by symbol (optional)
         limit: Maximum number of decisions to return
-        
+
     Returns:
         List of recent decisions
     """
@@ -428,16 +418,12 @@ async def get_recent_decisions(
             for log_file in (engine.data_dir / "indicators").glob("*_decisions.csv"):
                 sym = log_file.stem.replace("_decisions", "")
                 decisions.extend(get_decisions(str(log_file), sym, limit))
-            
+
             # Sort by timestamp and limit
             decisions.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
             decisions = decisions[:limit]
-        
-        return {
-            "success": True,
-            "count": len(decisions),
-            "decisions": decisions
-        }
+
+        return {"success": True, "count": len(decisions), "decisions": decisions}
     except Exception as e:
         logger.error(f"Error getting decisions: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -447,29 +433,27 @@ async def get_recent_decisions(
 async def list_strategies(engine: AIEngine = Depends(get_ai_engine)):
     """
     List all available AI strategies.
-    
+
     Returns:
         List of strategy files
     """
     try:
         strategies_dir = engine.config_dir / "strategies"
         strategies = []
-        
+
         for strategy_file in strategies_dir.glob("*.json"):
-            with open(strategy_file, 'r') as f:
+            with open(strategy_file, "r") as f:
                 strategy = json.load(f)
-                strategies.append({
-                    "file": strategy_file.name,
-                    "symbol": strategy.get("symbol"),
-                    "timeframe": strategy.get("timeframe"),
-                    "direction": strategy.get("strategy", {}).get("direction")
-                })
-        
-        return {
-            "success": True,
-            "count": len(strategies),
-            "strategies": strategies
-        }
+                strategies.append(
+                    {
+                        "file": strategy_file.name,
+                        "symbol": strategy.get("symbol"),
+                        "timeframe": strategy.get("timeframe"),
+                        "direction": strategy.get("strategy", {}).get("direction"),
+                    }
+                )
+
+        return {"success": True, "count": len(strategies), "strategies": strategies}
     except Exception as e:
         logger.error(f"Error listing strategies: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -477,9 +461,7 @@ async def list_strategies(engine: AIEngine = Depends(get_ai_engine)):
 
 @router.get("/strategies/{symbol}")
 async def get_strategy(
-    symbol: str,
-    timeframe: str = "H1",
-    engine: AIEngine = Depends(get_ai_engine)
+    symbol: str, timeframe: str = "H1", engine: AIEngine = Depends(get_ai_engine)
 ):
     """
     Get strategy configuration for a symbol.
@@ -492,11 +474,7 @@ async def get_strategy(
         Strategy configuration or 404 with helpful message
     """
     try:
-        rules = load_rules(
-            str(engine.config_dir / "strategies"),
-            symbol,
-            timeframe
-        )
+        rules = load_rules(str(engine.config_dir / "strategies"), symbol, timeframe)
 
         if rules:
             # Return the strategy object directly (not wrapped)
@@ -509,8 +487,8 @@ async def get_strategy(
                 detail={
                     "error": "STRATEGY_NOT_FOUND",
                     "message": f"No strategy found for {symbol} {timeframe}",
-                    "hint": f"Create a strategy file at config/ai/strategies/{symbol}_{timeframe}.json"
-                }
+                    "hint": f"Create a strategy file at config/ai/strategies/{symbol}_{timeframe}.json",
+                },
             )
     except HTTPException:
         raise
@@ -521,35 +499,29 @@ async def get_strategy(
 
 @router.post("/strategies/{symbol}")
 async def save_strategy(
-    symbol: str,
-    strategy: Dict,
-    engine: AIEngine = Depends(get_ai_engine)
+    symbol: str, strategy: Dict, engine: AIEngine = Depends(get_ai_engine)
 ):
     """
     Save or update strategy configuration for a symbol.
-    
+
     Args:
         symbol: Trading symbol
         strategy: Strategy configuration
-        
+
     Returns:
         Success message
     """
     try:
         # TODO: Validate strategy structure
         timeframe = strategy.get("timeframe", "H1")
-        
+
         # Save strategy
-        success = save_rules(
-            str(engine.config_dir / "strategies"),
-            symbol,
-            strategy
-        )
-        
+        success = save_rules(str(engine.config_dir / "strategies"), symbol, strategy)
+
         if success:
             return {
                 "success": True,
-                "message": f"Strategy saved for {symbol} {timeframe}"
+                "message": f"Strategy saved for {symbol} {timeframe}",
             }
         else:
             raise HTTPException(status_code=500, detail="Failed to save strategy")
@@ -559,9 +531,11 @@ async def save_strategy(
         logger.error(f"Error saving strategy for {symbol}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+
 # ============================================================================
 # Trade Idea Execution Endpoints
 # ============================================================================
+
 
 @router.get("/trade-ideas/pending")
 async def get_pending_trade_ideas():
@@ -572,7 +546,9 @@ async def get_pending_trade_ideas():
         List of pending trade ideas
     """
     global _active_trade_ideas
-    pending = [idea for idea in _active_trade_ideas if idea.status == "pending_approval"]
+    pending = [
+        idea for idea in _active_trade_ideas if idea.status == "pending_approval"
+    ]
     return {"trade_ideas": pending, "count": len(pending)}
 
 
@@ -595,8 +571,7 @@ async def get_trade_ideas_history(limit: int = 50):
 
 @router.post("/trade-ideas/{idea_id}/approve")
 async def approve_trade_idea(
-    idea_id: str,
-    executor: TradeIdeaExecutor = Depends(get_executor)
+    idea_id: str, executor: TradeIdeaExecutor = Depends(get_executor)
 ):
     """
     Approve a trade idea (changes status to approved, does not execute).
@@ -617,7 +592,7 @@ async def approve_trade_idea(
     if idea.status != "pending_approval":
         raise HTTPException(
             status_code=400,
-            detail=f"Trade idea must be pending approval (current status: {idea.status})"
+            detail=f"Trade idea must be pending approval (current status: {idea.status})",
         )
 
     # Update status to approved
@@ -648,7 +623,7 @@ async def reject_trade_idea(idea_id: str):
     if idea.status not in ["pending_approval", "approved"]:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot reject trade idea with status: {idea.status}"
+            detail=f"Cannot reject trade idea with status: {idea.status}",
         )
 
     # Update status to rejected
@@ -660,8 +635,7 @@ async def reject_trade_idea(idea_id: str):
 
 @router.post("/trade-ideas/{idea_id}/execute")
 async def execute_trade_idea(
-    idea_id: str,
-    executor: TradeIdeaExecutor = Depends(get_executor)
+    idea_id: str, executor: TradeIdeaExecutor = Depends(get_executor)
 ):
     """
     Execute an approved trade idea.
@@ -682,13 +656,13 @@ async def execute_trade_idea(
     if idea.status != "approved":
         raise HTTPException(
             status_code=400,
-            detail=f"Trade idea must be approved before execution (current status: {idea.status})"
+            detail=f"Trade idea must be approved before execution (current status: {idea.status})",
         )
 
     # Get account balance
     try:
         account_info = executor.mt5_client.get_account_info()
-        account_balance = account_info.get('balance', 10000.0)  # Default fallback
+        account_balance = account_info.get("balance", 10000.0)  # Default fallback
     except Exception as e:
         logger.warning(f"Could not get account balance: {e}, using default")
         account_balance = 10000.0
@@ -699,16 +673,16 @@ async def execute_trade_idea(
     if result.success:
         # Update status to executed
         idea.status = "executed"
-        logger.info(f"Trade idea {idea_id} executed successfully: order {result.order_id}")
+        logger.info(
+            f"Trade idea {idea_id} executed successfully: order {result.order_id}"
+        )
 
         return {
             "success": True,
             "order_id": result.order_id,
             "trade_idea": idea,
-            "details": result.details
+            "details": result.details,
         }
     else:
         logger.error(f"Trade idea {idea_id} execution failed: {result.error}")
         raise HTTPException(status_code=500, detail=result.error)
-
-

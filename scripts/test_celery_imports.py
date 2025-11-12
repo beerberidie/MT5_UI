@@ -24,6 +24,7 @@ print()
 print("[1/5] Testing Celery app import...")
 try:
     from backend.celery_app import celery_app
+
     print("  ✓ Celery app imported successfully")
     print(f"  - App name: {celery_app.main}")
     print(f"  - Broker: {celery_app.conf.broker_url}")
@@ -38,8 +39,9 @@ try:
     from backend.tasks.ai_tasks import (
         evaluate_all_strategies,
         evaluate_single_symbol,
-        backtest_strategy
+        backtest_strategy,
     )
+
     print("  ✓ AI tasks imported successfully")
     print(f"  - evaluate_all_strategies: {evaluate_all_strategies.name}")
     print(f"  - evaluate_single_symbol: {evaluate_single_symbol.name}")
@@ -47,6 +49,7 @@ try:
 except Exception as e:
     print(f"  ✗ Failed to import AI tasks: {e}")
     import traceback
+
     traceback.print_exc()
     sys.exit(1)
 
@@ -58,8 +61,9 @@ try:
         collect_market_data,
         update_economic_calendar,
         collect_rss_news,
-        update_symbol_info
+        update_symbol_info,
     )
+
     print("  ✓ Data tasks imported successfully")
     print(f"  - collect_market_data: {collect_market_data.name}")
     print(f"  - update_economic_calendar: {update_economic_calendar.name}")
@@ -68,6 +72,7 @@ try:
 except Exception as e:
     print(f"  ✗ Failed to import data tasks: {e}")
     import traceback
+
     traceback.print_exc()
     sys.exit(1)
 
@@ -80,8 +85,9 @@ try:
         cleanup_cache,
         archive_old_trades,
         system_health_check,
-        optimize_csv_files
+        optimize_csv_files,
     )
+
     print("  ✓ Maintenance tasks imported successfully")
     print(f"  - cleanup_old_logs: {cleanup_old_logs.name}")
     print(f"  - cleanup_cache: {cleanup_cache.name}")
@@ -91,6 +97,7 @@ try:
 except Exception as e:
     print(f"  ✗ Failed to import maintenance tasks: {e}")
     import traceback
+
     traceback.print_exc()
     sys.exit(1)
 
@@ -99,12 +106,14 @@ print()
 print("[5/5] Testing Celery routes import...")
 try:
     from backend.celery_routes import router
+
     print("  ✓ Celery routes imported successfully")
     print(f"  - Router prefix: {router.prefix}")
     print(f"  - Number of routes: {len(router.routes)}")
 except Exception as e:
     print(f"  ✗ Failed to import Celery routes: {e}")
     import traceback
+
     traceback.print_exc()
     sys.exit(1)
 
@@ -119,7 +128,7 @@ print("-" * 60)
 
 # List all registered tasks
 for task_name in sorted(celery_app.tasks.keys()):
-    if not task_name.startswith('celery.'):
+    if not task_name.startswith("celery."):
         print(f"  - {task_name}")
 
 print()
@@ -128,8 +137,8 @@ print("-" * 60)
 
 # List scheduled tasks
 for schedule_name, schedule_config in celery_app.conf.beat_schedule.items():
-    task_name = schedule_config['task']
-    schedule = schedule_config['schedule']
+    task_name = schedule_config["task"]
+    schedule = schedule_config["schedule"]
     print(f"  - {schedule_name}")
     print(f"    Task: {task_name}")
     print(f"    Schedule: {schedule}")
@@ -138,4 +147,3 @@ for schedule_name, schedule_config in celery_app.conf.beat_schedule.items():
 print("=" * 60)
 print("  Celery configuration is valid!")
 print("=" * 60)
-

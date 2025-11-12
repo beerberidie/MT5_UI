@@ -11,10 +11,24 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from .config import API_HOST, API_PORT, FRONTEND_ORIGIN, FRONTEND_ORIGINS, DATA_DIR, LOG_DIR, AUGMENT_API_KEY
+from .config import (
+    API_HOST,
+    API_PORT,
+    FRONTEND_ORIGIN,
+    FRONTEND_ORIGINS,
+    DATA_DIR,
+    LOG_DIR,
+    AUGMENT_API_KEY,
+)
 from .csv_io import append_csv, utcnow_iso, read_csv_rows
 from .mt5_client import MT5Client
-from .models import OrderRequest, PendingOrderRequest, HistoricalBarsRequest, HistoricalTicksRequest, TradingHistoryRequest
+from .models import (
+    OrderRequest,
+    PendingOrderRequest,
+    HistoricalBarsRequest,
+    HistoricalTicksRequest,
+    TradingHistoryRequest,
+)
 from .risk import risk_limits, symbol_map, sessions_map
 from . import ai_routes
 from . import settings_routes
@@ -35,7 +49,7 @@ app = FastAPI(
     version="1.0.0",
     description="Local MetaTrader 5 trading workstation API with CSV data storage",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
 )
 
 # Add rate limiting error handler
@@ -53,7 +67,7 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "X-API-Key", "Authorization", "Accept"],
     expose_headers=["Content-Type", "X-Response-Time"],
-    max_age=3600
+    max_age=3600,
 )
 
 # Mount AI routes
@@ -85,18 +99,21 @@ mt5 = MT5Client()
 
 # --- Security dependency (optional API key) ---
 
+
 def require_api_key(request: Request):
     if not AUGMENT_API_KEY:
         return
 
     provided_key = request.headers.get("X-API-Key")
-    client_ip = getattr(request.client, 'host', 'unknown') if request.client else 'unknown'
+    client_ip = (
+        getattr(request.client, "host", "unknown") if request.client else "unknown"
+    )
 
     if provided_key != AUGMENT_API_KEY:
         _log_security_event(
             "invalid_api_key_attempt",
             f"Invalid API key attempt from {client_ip}",
-            client_ip
+            client_ip,
         )
         raise HTTPException(status_code=401, detail="invalid_api_key")
 
@@ -104,11 +121,12 @@ def require_api_key(request: Request):
     _log_security_event(
         "api_key_authenticated",
         f"Successful API key authentication from {client_ip}",
-        client_ip
+        client_ip,
     )
 
 
 # --- Helpers ---
+
 
 def _canonical_to_broker(canonical: str) -> str:
     for row in symbol_map():
@@ -117,6 +135,7 @@ def _canonical_to_broker(canonical: str) -> str:
                 raise HTTPException(400, detail="symbol_disabled")
             return row.get("broker_symbol") or canonical
     raise HTTPException(404, detail="symbol_not_found")
+
 
 def _calculate_daily_pnl() -> float:
     """Calculate today's realized P&L from orders log."""
@@ -169,7 +188,7 @@ def _calculate_symbol_success_rates() -> Dict[str, Dict[str, Union[float, int]]]
                 "total_trades": 0,
                 "successful_trades": 0,
                 "win_rate": 0.0,
-                "last_trade": ""
+                "last_trade": "",
             }
 
         symbol_stats[canonical]["total_trades"] += 1
@@ -190,6 +209,7 @@ def _calculate_symbol_success_rates() -> Dict[str, Dict[str, Union[float, int]]]
 
     return symbol_stats
 
+
 def _check_daily_loss_limit() -> None:
     """Check if daily loss limit would be exceeded."""
     limits = risk_limits()
@@ -208,10 +228,11 @@ def _check_daily_loss_limit() -> None:
                 "error": {
                     "code": "DAILY_LOSS_LIMIT_EXCEEDED",
                     "message": f"Daily loss limit of {daily_limit} exceeded. Current P&L: {current_pnl}",
-                    "details": {"current_pnl": current_pnl, "limit": daily_limit}
+                    "details": {"current_pnl": current_pnl, "limit": daily_limit},
                 }
-            }
+            },
         )
+
 
 def _validate_and_round_volume(canonical: str, volume: float) -> float:
     """Validate and round volume according to symbol specifications."""
@@ -239,9 +260,9 @@ def _validate_and_round_volume(canonical: str, volume: float) -> float:
                 "error": {
                     "code": "VOLUME_TOO_SMALL",
                     "message": f"Volume {volume} is below minimum {min_vol} for {canonical}",
-                    "details": {"volume": volume, "min_volume": min_vol}
+                    "details": {"volume": volume, "min_volume": min_vol},
                 }
-            }
+            },
         )
 
     # Round to nearest valid step
@@ -249,7 +270,7 @@ def _validate_and_round_volume(canonical: str, volume: float) -> float:
     rounded_volume = min_vol + (steps * vol_step)
 
     # Round to appropriate decimal places to avoid floating point issues
-    decimal_places = len(str(vol_step).split('.')[-1]) if '.' in str(vol_step) else 0
+    decimal_places = len(str(vol_step).split(".")[-1]) if "." in str(vol_step) else 0
     rounded_volume = round(rounded_volume, decimal_places)
 
     return rounded_volume
@@ -279,35 +300,40 @@ def get_symbols(request: Request, live: bool = True):
 
             if not mt5_symbols:
                 # Fallback to configuration if MT5 Market Watch is empty
-                _log_error("symbols", "MT5 Market Watch is empty, falling back to configuration")
+                _log_error(
+                    "symbols",
+                    "MT5 Market Watch is empty, falling back to configuration",
+                )
                 return symbol_map()
 
             # Transform MT5 symbols to match our API format
             symbols = []
             for symbol in mt5_symbols:
-                symbols.append({
-                    "canonical": symbol["name"],
-                    "broker_symbol": symbol["name"],
-                    "enabled": True,
-                    "description": symbol.get("description", symbol["name"]),
-                    "currency_base": symbol.get("currency_base", ""),
-                    "currency_profit": symbol.get("currency_profit", ""),
-                    "currency_margin": symbol.get("currency_margin", ""),
-                    "digits": symbol.get("digits", 5),
-                    "point": symbol.get("point", 0.00001),
-                    "spread": symbol.get("spread", 0),
-                    "bid": symbol.get("bid", 0.0),
-                    "ask": symbol.get("ask", 0.0),
-                    "last": symbol.get("last", 0.0),
-                    "volume": symbol.get("volume", 0),
-                    "time": symbol.get("time", 0),
-                    "trade_mode": symbol.get("trade_mode", 0),
-                    "min_lot": symbol.get("volume_min", 0.01),
-                    "max_lot": symbol.get("volume_max", 100.0),
-                    "lot_step": symbol.get("volume_step", 0.01),
-                    "margin_initial": symbol.get("margin_initial", 0.0),
-                    "margin_maintenance": symbol.get("margin_maintenance", 0.0)
-                })
+                symbols.append(
+                    {
+                        "canonical": symbol["name"],
+                        "broker_symbol": symbol["name"],
+                        "enabled": True,
+                        "description": symbol.get("description", symbol["name"]),
+                        "currency_base": symbol.get("currency_base", ""),
+                        "currency_profit": symbol.get("currency_profit", ""),
+                        "currency_margin": symbol.get("currency_margin", ""),
+                        "digits": symbol.get("digits", 5),
+                        "point": symbol.get("point", 0.00001),
+                        "spread": symbol.get("spread", 0),
+                        "bid": symbol.get("bid", 0.0),
+                        "ask": symbol.get("ask", 0.0),
+                        "last": symbol.get("last", 0.0),
+                        "volume": symbol.get("volume", 0),
+                        "time": symbol.get("time", 0),
+                        "trade_mode": symbol.get("trade_mode", 0),
+                        "min_lot": symbol.get("volume_min", 0.01),
+                        "max_lot": symbol.get("volume_max", 100.0),
+                        "lot_step": symbol.get("volume_step", 0.01),
+                        "margin_initial": symbol.get("margin_initial", 0.0),
+                        "margin_maintenance": symbol.get("margin_maintenance", 0.0),
+                    }
+                )
 
             _log_info("symbols", f"Loaded {len(symbols)} symbols from MT5 Market Watch")
             return symbols
@@ -333,7 +359,9 @@ def get_market_watch_symbols(request: Request):
         return symbols
     except Exception as e:
         _log_error("market_watch", f"Failed to get Market Watch symbols: {str(e)}")
-        raise HTTPException(503, detail={"error": {"code": "MT5_UNAVAILABLE", "message": str(e)}})
+        raise HTTPException(
+            503, detail={"error": {"code": "MT5_UNAVAILABLE", "message": str(e)}}
+        )
 
 
 @app.get("/api/symbols/{symbol}/tick")
@@ -343,14 +371,24 @@ def get_symbol_tick(request: Request, symbol: str):
     try:
         tick_data = mt5.symbol_info_tick(symbol)
         if not tick_data:
-            raise HTTPException(404, detail={"error": {"code": "SYMBOL_NOT_FOUND", "message": f"No tick data for symbol {symbol}"}})
+            raise HTTPException(
+                404,
+                detail={
+                    "error": {
+                        "code": "SYMBOL_NOT_FOUND",
+                        "message": f"No tick data for symbol {symbol}",
+                    }
+                },
+            )
 
         return tick_data
     except HTTPException:
         raise
     except Exception as e:
         _log_error("tick_data", f"Failed to get tick data for {symbol}: {str(e)}")
-        raise HTTPException(503, detail={"error": {"code": "MT5_UNAVAILABLE", "message": str(e)}})
+        raise HTTPException(
+            503, detail={"error": {"code": "MT5_UNAVAILABLE", "message": str(e)}}
+        )
 
 
 @app.get("/api/symbols/priority")
@@ -368,33 +406,47 @@ def get_priority_symbols(request: Request, limit: int = 5):
             if mt5_symbols:
                 current_symbols = [s.name for s in mt5_symbols]
             else:
-                current_symbols = [row.get("canonical", "") for row in symbol_map() if row.get("enabled", "true").lower() == "true"]
+                current_symbols = [
+                    row.get("canonical", "")
+                    for row in symbol_map()
+                    if row.get("enabled", "true").lower() == "true"
+                ]
         except Exception:
-            current_symbols = [row.get("canonical", "") for row in symbol_map() if row.get("enabled", "true").lower() == "true"]
+            current_symbols = [
+                row.get("canonical", "")
+                for row in symbol_map()
+                if row.get("enabled", "true").lower() == "true"
+            ]
 
         # Filter success rates to only include currently available symbols
         filtered_stats = {
-            symbol: stats for symbol, stats in success_rates.items()
-            if symbol in current_symbols and stats["total_trades"] >= 3  # Minimum 3 trades for reliability
+            symbol: stats
+            for symbol, stats in success_rates.items()
+            if symbol in current_symbols
+            and stats["total_trades"] >= 3  # Minimum 3 trades for reliability
         }
 
         # Sort by win rate (descending) and then by total trades (descending)
         priority_symbols = sorted(
             filtered_stats.items(),
             key=lambda x: (x[1]["win_rate"], x[1]["total_trades"]),
-            reverse=True
+            reverse=True,
         )[:limit]
 
         # Format response
         result = []
         for symbol, stats in priority_symbols:
-            result.append({
-                "symbol": symbol,
-                "win_rate": round(stats["win_rate"] * 100, 1),  # Convert to percentage
-                "total_trades": stats["total_trades"],
-                "successful_trades": stats["successful_trades"],
-                "last_trade": stats["last_trade"]
-            })
+            result.append(
+                {
+                    "symbol": symbol,
+                    "win_rate": round(
+                        stats["win_rate"] * 100, 1
+                    ),  # Convert to percentage
+                    "total_trades": stats["total_trades"],
+                    "successful_trades": stats["successful_trades"],
+                    "last_trade": stats["last_trade"],
+                }
+            )
 
         return result
 
@@ -411,17 +463,28 @@ def get_symbol_info(request: Request, symbol: str):
     try:
         symbol_info = mt5.symbol_info(symbol)
         if not symbol_info:
-            raise HTTPException(404, detail={"error": {"code": "SYMBOL_NOT_FOUND", "message": f"Symbol {symbol} not found"}})
+            raise HTTPException(
+                404,
+                detail={
+                    "error": {
+                        "code": "SYMBOL_NOT_FOUND",
+                        "message": f"Symbol {symbol} not found",
+                    }
+                },
+            )
 
         return symbol_info
     except HTTPException:
         raise
     except Exception as e:
         _log_error("symbol_info", f"Failed to get symbol info for {symbol}: {str(e)}")
-        raise HTTPException(503, detail={"error": {"code": "MT5_UNAVAILABLE", "message": str(e)}})
+        raise HTTPException(
+            503, detail={"error": {"code": "MT5_UNAVAILABLE", "message": str(e)}}
+        )
 
 
 # === HEALTH & STATUS ENDPOINTS ===
+
 
 @app.get("/health")
 @limiter.limit("100/minute")
@@ -454,18 +517,19 @@ def health_check(request: Request):
                 "mt5_error": mt5_error,
                 "data_directories": data_accessible,
             },
-            "version": "1.1.0"
+            "version": "1.1.0",
         }
     except Exception as e:
         return {
             "status": "unhealthy",
             "timestamp": utcnow_iso(),
             "error": str(e),
-            "version": "1.1.0"
+            "version": "1.1.0",
         }
 
 
 # === ACCOUNT & MARKET DATA ENDPOINTS ===
+
 
 @app.get("/api/account")
 @limiter.limit("60/minute")
@@ -573,7 +637,11 @@ def post_order(request: Request, req: OrderRequest):
         )
     except Exception as e:
         _log_error("order_send", str(e))
-        return _error(503, "MT5_UNAVAILABLE", "MetaTrader5 module not available or terminal not connected")
+        return _error(
+            503,
+            "MT5_UNAVAILABLE",
+            "MetaTrader5 module not available or terminal not connected",
+        )
 
     # Log order attempt
     orders_log = os.path.join(LOG_DIR, "orders.csv")
@@ -647,7 +715,13 @@ def get_ticks(request: Request, canonical: str, limit: int = 200):
 
 @app.get("/api/bars")
 @limiter.limit("30/minute")
-def get_bars(request: Request, canonical: str, tf: str = "M1", from_: Union[str, None] = None, to: Union[str, None] = None):
+def get_bars(
+    request: Request,
+    canonical: str,
+    tf: str = "M1",
+    from_: Union[str, None] = None,
+    to: Union[str, None] = None,
+):
     # Validate inputs to prevent path traversal
     if not canonical.replace("_", "").replace("-", "").isalnum() or len(canonical) > 20:
         raise HTTPException(400, detail="invalid_symbol_format")
@@ -662,12 +736,14 @@ def get_bars(request: Request, canonical: str, tf: str = "M1", from_: Union[str,
     rows = read_csv_rows(path)
     # Basic filter on ts_utc if provided
     if from_ or to:
+
         def in_range(ts: str) -> bool:
             if from_ and ts < from_:
                 return False
             if to and ts > to:
                 return False
             return True
+
         rows = [r for r in rows if in_range(r.get("ts_utc", ""))]
     return rows
 
@@ -688,6 +764,7 @@ async def events(request: Request):
 
 # === PHASE 1 ENDPOINTS: PENDING ORDERS ===
 
+
 @app.get("/api/orders")
 @limiter.limit("60/minute")
 def get_pending_orders(request: Request, symbol: str = None, ticket: int = None):
@@ -699,8 +776,17 @@ def get_pending_orders(request: Request, symbol: str = None, ticket: int = None)
         if orders:
             path = os.path.join(LOG_DIR, "pending_orders.csv")
             header = [
-                "ts_utc", "ticket", "symbol", "type", "volume", "price_open",
-                "sl", "tp", "price_current", "comment", "magic"
+                "ts_utc",
+                "ticket",
+                "symbol",
+                "type",
+                "volume",
+                "price_open",
+                "sl",
+                "tp",
+                "price_current",
+                "comment",
+                "magic",
             ]
 
             for order in orders:
@@ -762,7 +848,11 @@ def create_pending_order(request: Request, req: PendingOrderRequest):
         )
     except Exception as e:
         _log_error("pending_order_send", str(e))
-        return _error(503, "MT5_UNAVAILABLE", "MetaTrader5 module not available or terminal not connected")
+        return _error(
+            503,
+            "MT5_UNAVAILABLE",
+            "MetaTrader5 module not available or terminal not connected",
+        )
 
     # Log pending order attempt
     orders_log = os.path.join(LOG_DIR, "orders.csv")
@@ -784,8 +874,19 @@ def create_pending_order(request: Request, req: PendingOrderRequest):
             "comment": result.get("comment", ""),
         },
         [
-            "ts_utc", "action", "canonical", "broker_symbol", "req_json",
-            "result_code", "order", "position", "price", "volume", "sl", "tp", "comment",
+            "ts_utc",
+            "action",
+            "canonical",
+            "broker_symbol",
+            "req_json",
+            "result_code",
+            "order",
+            "position",
+            "price",
+            "volume",
+            "sl",
+            "tp",
+            "comment",
         ],
     )
 
@@ -831,8 +932,19 @@ def cancel_pending_order(request: Request, order_id: int):
                 "comment": result.get("comment", ""),
             },
             [
-                "ts_utc", "action", "canonical", "broker_symbol", "req_json",
-                "result_code", "order", "position", "price", "volume", "sl", "tp", "comment",
+                "ts_utc",
+                "action",
+                "canonical",
+                "broker_symbol",
+                "req_json",
+                "result_code",
+                "order",
+                "position",
+                "price",
+                "volume",
+                "sl",
+                "tp",
+                "comment",
             ],
         )
 
@@ -851,8 +963,11 @@ def cancel_pending_order(request: Request, order_id: int):
             )
     except Exception as e:
         _log_error("cancel_pending_order", str(e))
-        return _error(503, "MT5_UNAVAILABLE", "MetaTrader5 module not available or terminal not connected")
-
+        return _error(
+            503,
+            "MT5_UNAVAILABLE",
+            "MetaTrader5 module not available or terminal not connected",
+        )
 
 
 @app.patch("/api/orders/{order_id}", dependencies=[Depends(require_api_key)])
@@ -864,7 +979,9 @@ def modify_pending_order(request: Request, order_id: int, body: dict):
         sl = body.get("sl") if isinstance(body, dict) else None
         tp = body.get("tp") if isinstance(body, dict) else None
         expiration = body.get("expiration") if isinstance(body, dict) else None
-        result = mt5.order_modify(order_id, price=price, sl=sl, tp=tp, expiration=expiration)
+        result = mt5.order_modify(
+            order_id, price=price, sl=sl, tp=tp, expiration=expiration
+        )
         if int(result.get("retcode", 0)) >= 10000:
             return {
                 "order": result.get("order"),
@@ -880,7 +997,11 @@ def modify_pending_order(request: Request, order_id: int, body: dict):
             )
     except Exception as e:
         _log_error("modify_pending_order", str(e))
-        return _error(503, "MT5_UNAVAILABLE", "MetaTrader5 module not available or terminal not connected")
+        return _error(
+            503,
+            "MT5_UNAVAILABLE",
+            "MetaTrader5 module not available or terminal not connected",
+        )
 
 
 @app.post("/api/positions/{ticket}/close", dependencies=[Depends(require_api_key)])
@@ -906,10 +1027,15 @@ def close_position(request: Request, ticket: int):
             )
     except Exception as e:
         _log_error("close_position", str(e))
-        return _error(503, "MT5_UNAVAILABLE", "MetaTrader5 module not available or terminal not connected")
+        return _error(
+            503,
+            "MT5_UNAVAILABLE",
+            "MetaTrader5 module not available or terminal not connected",
+        )
 
 
 # === PHASE 1 ENDPOINTS: HISTORICAL DATA ===
+
 
 @app.get("/api/history/bars")
 @limiter.limit("30/minute")
@@ -919,12 +1045,13 @@ def get_historical_bars(
     timeframe: str = "M1",
     date_from: str = None,
     date_to: str = None,
-    count: int = 1000
+    count: int = 1000,
 ):
     """Get historical price bars for a symbol."""
     # Validate timeframe
     try:
         import MetaTrader5 as mt5_module
+
         valid_timeframes = {
             "M1": mt5_module.TIMEFRAME_M1,
             "M5": mt5_module.TIMEFRAME_M5,
@@ -937,8 +1064,13 @@ def get_historical_bars(
     except ImportError:
         # Fallback for testing
         valid_timeframes = {
-            "M1": 1, "M5": 5, "M15": 15, "M30": 30,
-            "H1": 16385, "H4": 16388, "D1": 16408,
+            "M1": 1,
+            "M5": 5,
+            "M15": 15,
+            "M30": 30,
+            "H1": 16385,
+            "H4": 16388,
+            "D1": 16408,
         }
 
     if timeframe not in valid_timeframes:
@@ -949,14 +1081,18 @@ def get_historical_bars(
 
         if date_from and date_to:
             # Parse dates
-            dt_from = datetime.fromisoformat(date_from.replace('Z', '+00:00'))
-            dt_to = datetime.fromisoformat(date_to.replace('Z', '+00:00'))
+            dt_from = datetime.fromisoformat(date_from.replace("Z", "+00:00"))
+            dt_to = datetime.fromisoformat(date_to.replace("Z", "+00:00"))
 
             # Get historical data for date range
-            rates = mt5.copy_rates_range(symbol, valid_timeframes[timeframe], dt_from, dt_to)
+            rates = mt5.copy_rates_range(
+                symbol, valid_timeframes[timeframe], dt_from, dt_to
+            )
         else:
             # Get most recent bars
-            rates = mt5.copy_rates_from_pos(symbol, valid_timeframes[timeframe], 0, count)
+            rates = mt5.copy_rates_from_pos(
+                symbol, valid_timeframes[timeframe], 0, count
+            )
 
         if rates is None:
             return []
@@ -964,24 +1100,38 @@ def get_historical_bars(
         # Convert to list of dictionaries for JSON serialization
         bars_data = []
         for rate in rates:
-            bars_data.append({
-                "time": int(rate[0]),  # timestamp
-                "open": float(rate[1]),
-                "high": float(rate[2]),
-                "low": float(rate[3]),
-                "close": float(rate[4]),
-                "tick_volume": int(rate[5]),
-                "spread": int(rate[6]),
-                "real_volume": int(rate[7]) if len(rate) > 7 else 0,
-            })
+            bars_data.append(
+                {
+                    "time": int(rate[0]),  # timestamp
+                    "open": float(rate[1]),
+                    "high": float(rate[2]),
+                    "low": float(rate[3]),
+                    "close": float(rate[4]),
+                    "tick_volume": int(rate[5]),
+                    "spread": int(rate[6]),
+                    "real_volume": int(rate[7]) if len(rate) > 7 else 0,
+                }
+            )
 
         # Cache historical data to CSV
         if bars_data:
             today = datetime.now(timezone.utc).strftime("%Y-%m")
-            path = os.path.join(DATA_DIR, "history", "bars", timeframe, symbol, f"{today}.csv")
+            path = os.path.join(
+                DATA_DIR, "history", "bars", timeframe, symbol, f"{today}.csv"
+            )
             os.makedirs(os.path.dirname(path), exist_ok=True)
 
-            header = ["ts_utc", "time", "open", "high", "low", "close", "tick_volume", "spread", "real_volume"]
+            header = [
+                "ts_utc",
+                "time",
+                "open",
+                "high",
+                "low",
+                "close",
+                "tick_volume",
+                "spread",
+                "real_volume",
+            ]
             for bar in bars_data[-100:]:  # Cache last 100 bars to avoid huge files
                 append_csv(
                     path,
@@ -1002,7 +1152,9 @@ def get_historical_bars(
         return bars_data
 
     except Exception as e:
-        _log_error("historical_bars", f"Failed to get historical bars for {symbol}: {str(e)}")
+        _log_error(
+            "historical_bars", f"Failed to get historical bars for {symbol}: {str(e)}"
+        )
         return []
 
 
@@ -1014,7 +1166,7 @@ def get_historical_ticks(
     date_from: str,
     date_to: str,
     flags: str = "ALL",
-    count: int = 10000
+    count: int = 10000,
 ):
     """Get historical tick data for a symbol.
 
@@ -1029,9 +1181,10 @@ def get_historical_ticks(
     # Map flags to MT5 constants (only valid constants for MT5 v5.0.45)
     try:
         import MetaTrader5 as mt5_module
+
         flag_map = {
-            "ALL": mt5_module.COPY_TICKS_ALL,      # -1: All ticks
-            "INFO": mt5_module.COPY_TICKS_INFO,    # 1: Ticks with price changes
+            "ALL": mt5_module.COPY_TICKS_ALL,  # -1: All ticks
+            "INFO": mt5_module.COPY_TICKS_INFO,  # 1: Ticks with price changes
             "TRADE": mt5_module.COPY_TICKS_TRADE,  # 2: Trade ticks only
         }
     except ImportError:
@@ -1045,14 +1198,15 @@ def get_historical_ticks(
     if flags not in flag_map:
         raise HTTPException(
             400,
-            detail=f"invalid_flags: '{flags}' not supported. Valid flags: {', '.join(flag_map.keys())}"
+            detail=f"invalid_flags: '{flags}' not supported. Valid flags: {', '.join(flag_map.keys())}",
         )
 
     try:
         # Parse dates
         from datetime import datetime
-        dt_from = datetime.fromisoformat(date_from.replace('Z', '+00:00'))
-        dt_to = datetime.fromisoformat(date_to.replace('Z', '+00:00'))
+
+        dt_from = datetime.fromisoformat(date_from.replace("Z", "+00:00"))
+        dt_to = datetime.fromisoformat(date_to.replace("Z", "+00:00"))
 
         # Get historical tick data
         ticks = mt5.copy_ticks_range(symbol, dt_from, dt_to, flag_map[flags])
@@ -1064,16 +1218,18 @@ def get_historical_ticks(
         ticks_data = []
         for tick in ticks[:count]:
             tick_dict = tick._asdict()
-            ticks_data.append({
-                "time": int(tick_dict["time"]),
-                "bid": float(tick_dict["bid"]),
-                "ask": float(tick_dict["ask"]),
-                "last": float(tick_dict["last"]),
-                "volume": int(tick_dict["volume"]),
-                "time_msc": int(tick_dict["time_msc"]),
-                "flags": int(tick_dict["flags"]),
-                "volume_real": float(tick_dict["volume_real"]),
-            })
+            ticks_data.append(
+                {
+                    "time": int(tick_dict["time"]),
+                    "bid": float(tick_dict["bid"]),
+                    "ask": float(tick_dict["ask"]),
+                    "last": float(tick_dict["last"]),
+                    "volume": int(tick_dict["volume"]),
+                    "time_msc": int(tick_dict["time_msc"]),
+                    "flags": int(tick_dict["flags"]),
+                    "volume_real": float(tick_dict["volume_real"]),
+                }
+            )
 
         # Cache tick data to CSV
         if ticks_data:
@@ -1081,7 +1237,17 @@ def get_historical_ticks(
             path = os.path.join(DATA_DIR, "history", "ticks", symbol, f"{today}.csv")
             os.makedirs(os.path.dirname(path), exist_ok=True)
 
-            header = ["ts_utc", "time", "bid", "ask", "last", "volume", "time_msc", "flags", "volume_real"]
+            header = [
+                "ts_utc",
+                "time",
+                "bid",
+                "ask",
+                "last",
+                "volume",
+                "time_msc",
+                "flags",
+                "volume_real",
+            ]
             for tick in ticks_data[-1000:]:  # Cache last 1000 ticks
                 append_csv(
                     path,
@@ -1102,19 +1268,19 @@ def get_historical_ticks(
         return ticks_data
 
     except Exception as e:
-        _log_error("historical_ticks", f"Failed to get historical ticks for {symbol}: {str(e)}")
+        _log_error(
+            "historical_ticks", f"Failed to get historical ticks for {symbol}: {str(e)}"
+        )
         return []
 
 
 # === PHASE 1 ENDPOINTS: TRADING HISTORY ===
 
+
 @app.get("/api/history/deals")
 @limiter.limit("30/minute")
 def get_trading_deals(
-    request: Request,
-    date_from: str = None,
-    date_to: str = None,
-    symbol: str = None
+    request: Request, date_from: str = None, date_to: str = None, symbol: str = None
 ):
     """Get trading deals history with P&L calculations."""
     try:
@@ -1125,13 +1291,13 @@ def get_trading_deals(
             dt_to = datetime.now()
             date_to = dt_to.isoformat()
         else:
-            dt_to = datetime.fromisoformat(date_to.replace('Z', '+00:00'))
+            dt_to = datetime.fromisoformat(date_to.replace("Z", "+00:00"))
 
         if not date_from:
             dt_from = dt_to - timedelta(days=30)
             date_from = dt_from.isoformat()
         else:
-            dt_from = datetime.fromisoformat(date_from.replace('Z', '+00:00'))
+            dt_from = datetime.fromisoformat(date_from.replace("Z", "+00:00"))
 
         # Get deals from MT5
         deals = mt5.history_deals_get(dt_from, dt_to, symbol=symbol)
@@ -1149,7 +1315,7 @@ def get_trading_deals(
                     "date_from": date_from,
                     "date_to": date_to,
                     "symbol_filter": symbol,
-                }
+                },
             }
 
         # Convert to list and calculate statistics
@@ -1168,33 +1334,47 @@ def get_trading_deals(
             total_commission += commission
             total_swap += swap
 
-            deals_data.append({
-                "ticket": int(deal_dict["ticket"]),
-                "order": int(deal_dict["order"]),
-                "time": int(deal_dict["time"]),
-                "time_msc": int(deal_dict["time_msc"]),
-                "type": int(deal_dict["type"]),
-                "entry": int(deal_dict["entry"]),
-                "magic": int(deal_dict["magic"]),
-                "position_id": int(deal_dict["position_id"]),
-                "reason": int(deal_dict["reason"]),
-                "volume": float(deal_dict["volume"]),
-                "price": float(deal_dict["price"]),
-                "commission": commission,
-                "swap": swap,
-                "profit": profit,
-                "symbol": deal_dict["symbol"],
-                "comment": deal_dict["comment"],
-                "external_id": deal_dict["external_id"],
-            })
+            deals_data.append(
+                {
+                    "ticket": int(deal_dict["ticket"]),
+                    "order": int(deal_dict["order"]),
+                    "time": int(deal_dict["time"]),
+                    "time_msc": int(deal_dict["time_msc"]),
+                    "type": int(deal_dict["type"]),
+                    "entry": int(deal_dict["entry"]),
+                    "magic": int(deal_dict["magic"]),
+                    "position_id": int(deal_dict["position_id"]),
+                    "reason": int(deal_dict["reason"]),
+                    "volume": float(deal_dict["volume"]),
+                    "price": float(deal_dict["price"]),
+                    "commission": commission,
+                    "swap": swap,
+                    "profit": profit,
+                    "symbol": deal_dict["symbol"],
+                    "comment": deal_dict["comment"],
+                    "external_id": deal_dict["external_id"],
+                }
+            )
 
         # Log deals to CSV
         if deals_data:
             path = os.path.join(LOG_DIR, "deals.csv")
             header = [
-                "ts_utc", "ticket", "order", "time", "type", "entry", "magic",
-                "position_id", "volume", "price", "commission", "swap", "profit",
-                "symbol", "comment"
+                "ts_utc",
+                "ticket",
+                "order",
+                "time",
+                "type",
+                "entry",
+                "magic",
+                "position_id",
+                "volume",
+                "price",
+                "commission",
+                "swap",
+                "profit",
+                "symbol",
+                "comment",
             ]
 
             for deal in deals_data[-100:]:  # Log last 100 deals
@@ -1232,7 +1412,7 @@ def get_trading_deals(
                 "date_from": date_from,
                 "date_to": date_to,
                 "symbol_filter": symbol,
-            }
+            },
         }
 
     except Exception as e:
@@ -1243,10 +1423,7 @@ def get_trading_deals(
 @app.get("/api/history/orders")
 @limiter.limit("30/minute")
 def get_trading_orders(
-    request: Request,
-    date_from: str = None,
-    date_to: str = None,
-    symbol: str = None
+    request: Request, date_from: str = None, date_to: str = None, symbol: str = None
 ):
     """Get trading orders history."""
     try:
@@ -1257,13 +1434,13 @@ def get_trading_orders(
             dt_to = datetime.now()
             date_to = dt_to.isoformat()
         else:
-            dt_to = datetime.fromisoformat(date_to.replace('Z', '+00:00'))
+            dt_to = datetime.fromisoformat(date_to.replace("Z", "+00:00"))
 
         if not date_from:
             dt_from = dt_to - timedelta(days=30)
             date_from = dt_from.isoformat()
         else:
-            dt_from = datetime.fromisoformat(date_from.replace('Z', '+00:00'))
+            dt_from = datetime.fromisoformat(date_from.replace("Z", "+00:00"))
 
         # Get orders from MT5
         orders = mt5.history_orders_get(dt_from, dt_to, symbol=symbol)
@@ -1278,7 +1455,7 @@ def get_trading_orders(
                     "date_from": date_from,
                     "date_to": date_to,
                     "symbol_filter": symbol,
-                }
+                },
             }
 
         # Convert to list and categorize
@@ -1292,32 +1469,34 @@ def get_trading_orders(
             # Count order types
             order_types[order_type] = order_types.get(order_type, 0) + 1
 
-            orders_data.append({
-                "ticket": int(order_dict["ticket"]),
-                "time_setup": int(order_dict["time_setup"]),
-                "time_setup_msc": int(order_dict["time_setup_msc"]),
-                "time_done": int(order_dict["time_done"]),
-                "time_done_msc": int(order_dict["time_done_msc"]),
-                "time_expiration": int(order_dict["time_expiration"]),
-                "type": order_type,
-                "type_filling": int(order_dict["type_filling"]),
-                "type_time": int(order_dict["type_time"]),
-                "state": int(order_dict["state"]),
-                "magic": int(order_dict["magic"]),
-                "position_id": int(order_dict["position_id"]),
-                "position_by_id": int(order_dict["position_by_id"]),
-                "reason": int(order_dict["reason"]),
-                "volume_initial": float(order_dict["volume_initial"]),
-                "volume_current": float(order_dict["volume_current"]),
-                "price_open": float(order_dict["price_open"]),
-                "sl": float(order_dict["sl"]),
-                "tp": float(order_dict["tp"]),
-                "price_current": float(order_dict["price_current"]),
-                "price_stoplimit": float(order_dict["price_stoplimit"]),
-                "symbol": order_dict["symbol"],
-                "comment": order_dict["comment"],
-                "external_id": order_dict["external_id"],
-            })
+            orders_data.append(
+                {
+                    "ticket": int(order_dict["ticket"]),
+                    "time_setup": int(order_dict["time_setup"]),
+                    "time_setup_msc": int(order_dict["time_setup_msc"]),
+                    "time_done": int(order_dict["time_done"]),
+                    "time_done_msc": int(order_dict["time_done_msc"]),
+                    "time_expiration": int(order_dict["time_expiration"]),
+                    "type": order_type,
+                    "type_filling": int(order_dict["type_filling"]),
+                    "type_time": int(order_dict["type_time"]),
+                    "state": int(order_dict["state"]),
+                    "magic": int(order_dict["magic"]),
+                    "position_id": int(order_dict["position_id"]),
+                    "position_by_id": int(order_dict["position_by_id"]),
+                    "reason": int(order_dict["reason"]),
+                    "volume_initial": float(order_dict["volume_initial"]),
+                    "volume_current": float(order_dict["volume_current"]),
+                    "price_open": float(order_dict["price_open"]),
+                    "sl": float(order_dict["sl"]),
+                    "tp": float(order_dict["tp"]),
+                    "price_current": float(order_dict["price_current"]),
+                    "price_stoplimit": float(order_dict["price_stoplimit"]),
+                    "symbol": order_dict["symbol"],
+                    "comment": order_dict["comment"],
+                    "external_id": order_dict["external_id"],
+                }
+            )
 
         # Return orders with summary
         return {
@@ -1328,7 +1507,7 @@ def get_trading_orders(
                 "date_from": date_from,
                 "date_to": date_to,
                 "symbol_filter": symbol,
-            }
+            },
         }
 
     except Exception as e:
@@ -1337,6 +1516,7 @@ def get_trading_orders(
 
 
 # --- Error helpers ---
+
 
 def _error(status: int, code: str, msg: str, *, details: Union[Dict, None] = None):
     body = {"error": {"code": code, "message": msg, "details": details or {}}}
@@ -1347,13 +1527,14 @@ def _error(status: int, code: str, msg: str, *, details: Union[Dict, None] = Non
 def _sanitize_message(message: str) -> str:
     """Sanitize error messages to remove sensitive information."""
     import re
+
     # Remove potential API keys, passwords, and other sensitive patterns
     patterns = [
-        (r'[Aa]pi[_-]?[Kk]ey["\s]*[:=]["\s]*[A-Za-z0-9]{8,}', 'API_KEY=***'),
-        (r'[Pp]assword["\s]*[:=]["\s]*[^\s"]+', 'password=***'),
-        (r'[Tt]oken["\s]*[:=]["\s]*[A-Za-z0-9]{8,}', 'token=***'),
-        (r'[Aa]uthorization["\s]*[:=]["\s]*[^\s"]+', 'Authorization=***'),
-        (r'X-API-Key["\s]*[:=]["\s]*[A-Za-z0-9]{8,}', 'X-API-Key=***'),
+        (r'[Aa]pi[_-]?[Kk]ey["\s]*[:=]["\s]*[A-Za-z0-9]{8,}', "API_KEY=***"),
+        (r'[Pp]assword["\s]*[:=]["\s]*[^\s"]+', "password=***"),
+        (r'[Tt]oken["\s]*[:=]["\s]*[A-Za-z0-9]{8,}', "token=***"),
+        (r'[Aa]uthorization["\s]*[:=]["\s]*[^\s"]+', "Authorization=***"),
+        (r'X-API-Key["\s]*[:=]["\s]*[A-Za-z0-9]{8,}', "X-API-Key=***"),
     ]
 
     sanitized = message
@@ -1365,6 +1546,7 @@ def _sanitize_message(message: str) -> str:
         sanitized = sanitized[:497] + "..."
 
     return sanitized
+
 
 def _log_error(scope: str, message: str, details: str = ""):
     """Log errors with sanitization to prevent sensitive data exposure."""
@@ -1383,6 +1565,7 @@ def _log_error(scope: str, message: str, details: str = ""):
         },
         ["ts_utc", "scope", "message", "last_error", "details"],
     )
+
 
 def _log_info(category: str, message: str) -> None:
     """Log informational messages."""
@@ -1406,4 +1589,3 @@ def _log_security_event(event_type: str, details: str, client_ip: str = "unknown
         },
         ["ts_utc", "event_type", "client_ip", "details"],
     )
-

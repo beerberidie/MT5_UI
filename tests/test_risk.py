@@ -12,4 +12,3 @@ def test_sessions_map_and_rule(temp_dirs):
     assert "EURUSD" in smap
     start, end, block = smap["EURUSD"]
     assert start == "00:00:00" and end == "23:59:59"
-

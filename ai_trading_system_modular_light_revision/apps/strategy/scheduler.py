@@ -1,7 +1,11 @@
 """apps/strategy/scheduler.py — Map confidence → action/risk"""
+
 from typing import Dict
 
-def schedule_action(score: int, min_rr_ok: bool, risk_cap_pct: float = 0.03) -> Dict[str, str]:
+
+def schedule_action(
+    score: int, min_rr_ok: bool, risk_cap_pct: float = 0.03
+) -> Dict[str, str]:
     if score < 60:
         return {"action": "observe", "riskPct": "0"}
     if score < 75:

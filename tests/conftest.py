@@ -13,6 +13,7 @@ import backend.risk as risk_module
 
 class MockMT5Object:
     """Mock object that simulates MT5 named tuple behavior."""
+
     def __init__(self, data_dict):
         self._data = data_dict
 
@@ -47,7 +48,9 @@ class FakeMT5Client:
         # Return a success-like retcode
         return {"retcode": 10009, "order": 1, "position": 0, "comment": "ok"}
 
-    def copy_rates_from_pos(self, symbol: str, timeframe, start_pos: int, count: int) -> list:
+    def copy_rates_from_pos(
+        self, symbol: str, timeframe, start_pos: int, count: int
+    ) -> list:
         """Return mock historical bars data."""
         return self._historical_bars
 
@@ -72,9 +75,12 @@ class FakeMT5Client:
 def temp_dirs(monkeypatch):
     # Create temp dirs for data, logs, config
     root = tempfile.mkdtemp(prefix="mt5ui_tests_")
-    data = os.path.join(root, "data"); os.makedirs(data, exist_ok=True)
-    logs = os.path.join(root, "logs"); os.makedirs(logs, exist_ok=True)
-    config = os.path.join(root, "config"); os.makedirs(config, exist_ok=True)
+    data = os.path.join(root, "data")
+    os.makedirs(data, exist_ok=True)
+    logs = os.path.join(root, "logs")
+    os.makedirs(logs, exist_ok=True)
+    config = os.path.join(root, "config")
+    os.makedirs(config, exist_ok=True)
 
     # Write minimal config CSVs
     with open(os.path.join(config, "symbol_map.csv"), "w", encoding="utf-8") as f:
@@ -90,7 +96,9 @@ def temp_dirs(monkeypatch):
     # Patch config constants used by code
     monkeypatch.setattr(app_module, "DATA_DIR", data, raising=False)
     monkeypatch.setattr(app_module, "LOG_DIR", logs, raising=False)
-    monkeypatch.setattr(app_module, "FRONTEND_ORIGINS", ["http://127.0.0.1:3000"], raising=False)
+    monkeypatch.setattr(
+        app_module, "FRONTEND_ORIGINS", ["http://127.0.0.1:3000"], raising=False
+    )
     monkeypatch.setattr(risk_module, "CONFIG_DIR", config, raising=False)
 
     try:
@@ -110,7 +118,7 @@ def fake_mt5(monkeypatch):
 @pytest.fixture()
 def client(temp_dirs, fake_mt5):
     from fastapi.testclient import TestClient
+
     # Disable API key requirement during tests so they pass regardless of env
     app_module.app.dependency_overrides[app_module.require_api_key] = lambda: None
     return TestClient(app_module.app)
-

@@ -30,4 +30,3 @@ def read_csv_rows(path: str) -> List[Dict[str, str]]:
         return []
     with open(path, newline="", encoding=ENCODING) as f:
         return list(csv.DictReader(f))
-

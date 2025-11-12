@@ -12,8 +12,7 @@ from contextlib import asynccontextmanager
 
 # Database URL from environment variable
 DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+asyncpg://trader:trader@localhost:5432/ai_trader"
+    "DATABASE_URL", "postgresql+asyncpg://trader:trader@localhost:5432/ai_trader"
 )
 
 # Create async engine
@@ -39,13 +38,13 @@ AsyncSessionLocal = async_sessionmaker(
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     Dependency for FastAPI endpoints to get database session.
-    
+
     Usage:
         @app.get("/endpoint")
         async def endpoint(db: AsyncSession = Depends(get_db)):
             # Use db session
             pass
-    
+
     Yields:
         AsyncSession: Database session
     """
@@ -64,12 +63,12 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def get_db_context():
     """
     Context manager for database session (for use outside FastAPI).
-    
+
     Usage:
         async with get_db_context() as db:
             # Use db session
             pass
-    
+
     Yields:
         AsyncSession: Database session
     """
@@ -87,24 +86,24 @@ async def get_db_context():
 async def init_db():
     """
     Initialize database schema.
-    
+
     Creates all tables defined in database.py if they don't exist.
     Should be called on application startup.
     """
     from backend.database import Base
-    
+
     async with engine.begin() as conn:
         # Create all tables
         await conn.run_sync(Base.metadata.create_all)
-        
+
         # Initialize risk_config with default values if not exists
         from backend.database import RiskConfig
         from sqlalchemy import select
-        
+
         async with AsyncSessionLocal() as session:
             result = await session.execute(select(RiskConfig))
             risk_config = result.scalar_one_or_none()
-            
+
             if not risk_config:
                 # Create default risk config
                 default_config = RiskConfig(
@@ -118,7 +117,7 @@ async def init_db():
                     max_drawdown_amount=1000.0,
                     halt_on_drawdown=True,
                     allow_off_watchlist_autotrade=False,
-                    last_halt_reason=None
+                    last_halt_reason=None,
                 )
                 session.add(default_config)
                 await session.commit()
@@ -127,7 +126,7 @@ async def init_db():
 async def close_db():
     """
     Close database connections.
-    
+
     Should be called on application shutdown.
     """
     await engine.dispose()
@@ -137,19 +136,21 @@ async def close_db():
 def create_test_engine(database_url: str = None):
     """
     Create a test database engine with NullPool.
-    
+
     Args:
         database_url: Optional test database URL
-    
+
     Returns:
         AsyncEngine: Test database engine
     """
-    test_url = database_url or "postgresql+asyncpg://trader:trader@localhost:5432/ai_trader_test"
-    
+    test_url = (
+        database_url
+        or "postgresql+asyncpg://trader:trader@localhost:5432/ai_trader_test"
+    )
+
     return create_async_engine(
         test_url,
         echo=True,
         future=True,
         poolclass=NullPool,  # No connection pooling for tests
     )
-

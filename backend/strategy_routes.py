@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from backend.strategy_validator import (
     validate_and_prepare,
     validate_strategy,
-    StrategyValidationError
+    StrategyValidationError,
 )
 
 logger = logging.getLogger(__name__)
@@ -31,8 +31,10 @@ STRATEGIES_DIR.mkdir(parents=True, exist_ok=True)
 
 # Pydantic Models
 
+
 class StrategyBase(BaseModel):
     """Base strategy model."""
+
     name: str = Field(..., min_length=1, max_length=100)
     description: Optional[str] = Field(None, max_length=500)
     enabled: bool = Field(default=True)
@@ -46,11 +48,13 @@ class StrategyBase(BaseModel):
 
 class StrategyCreate(StrategyBase):
     """Model for creating a new strategy."""
+
     pass
 
 
 class StrategyUpdate(BaseModel):
     """Model for updating an existing strategy."""
+
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = Field(None, max_length=500)
     enabled: Optional[bool] = None
@@ -62,6 +66,7 @@ class StrategyUpdate(BaseModel):
 
 class StrategyResponse(StrategyBase):
     """Model for strategy response."""
+
     id: str
     created_at: str
     updated_at: str
@@ -70,6 +75,7 @@ class StrategyResponse(StrategyBase):
 
 class StrategyListResponse(BaseModel):
     """Model for strategy list response."""
+
     items: List[StrategyResponse]
     total: int
     enabled_count: int
@@ -78,16 +84,19 @@ class StrategyListResponse(BaseModel):
 
 class StrategyToggleRequest(BaseModel):
     """Model for enabling/disabling a strategy."""
+
     enabled: bool
 
 
 class ValidationResponse(BaseModel):
     """Model for validation response."""
+
     is_valid: bool
     errors: List[str] = Field(default_factory=list)
 
 
 # Helper Functions
+
 
 def _get_strategy_path(strategy_id: str) -> Path:
     """Get file path for strategy by ID."""
@@ -97,12 +106,12 @@ def _get_strategy_path(strategy_id: str) -> Path:
 def _load_strategy(strategy_id: str) -> Optional[Dict[str, Any]]:
     """Load strategy from JSON file."""
     strategy_path = _get_strategy_path(strategy_id)
-    
+
     if not strategy_path.exists():
         return None
-    
+
     try:
-        with open(strategy_path, 'r', encoding='utf-8') as f:
+        with open(strategy_path, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
         logger.error(f"Error loading strategy {strategy_id}: {e}")
@@ -112,9 +121,9 @@ def _load_strategy(strategy_id: str) -> Optional[Dict[str, Any]]:
 def _save_strategy(strategy_id: str, data: Dict[str, Any]) -> bool:
     """Save strategy to JSON file."""
     strategy_path = _get_strategy_path(strategy_id)
-    
+
     try:
-        with open(strategy_path, 'w', encoding='utf-8') as f:
+        with open(strategy_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
         return True
     except Exception as e:
@@ -125,7 +134,7 @@ def _save_strategy(strategy_id: str, data: Dict[str, Any]) -> bool:
 def _delete_strategy_file(strategy_id: str) -> bool:
     """Delete strategy JSON file."""
     strategy_path = _get_strategy_path(strategy_id)
-    
+
     try:
         if strategy_path.exists():
             strategy_path.unlink()
@@ -138,57 +147,58 @@ def _delete_strategy_file(strategy_id: str) -> bool:
 def _load_all_strategies() -> List[Dict[str, Any]]:
     """Load all strategies from directory."""
     strategies = []
-    
+
     for strategy_file in STRATEGIES_DIR.glob("*.json"):
         try:
-            with open(strategy_file, 'r', encoding='utf-8') as f:
+            with open(strategy_file, "r", encoding="utf-8") as f:
                 strategy = json.load(f)
                 strategies.append(strategy)
         except Exception as e:
             logger.error(f"Error loading strategy from {strategy_file}: {e}")
-    
+
     return strategies
 
 
 # API Endpoints
 
+
 @router.get("", response_model=StrategyListResponse)
 async def list_strategies(
     enabled: Optional[bool] = Query(None, description="Filter by enabled status"),
-    symbol: Optional[str] = Query(None, description="Filter by symbol")
+    symbol: Optional[str] = Query(None, description="Filter by symbol"),
 ):
     """
     Get all strategies with optional filtering.
-    
+
     Query Parameters:
         - enabled: Filter by enabled status (true/false)
         - symbol: Filter by symbol (e.g., EURUSD)
-    
+
     Returns:
         List of strategies with counts
     """
     try:
         strategies = _load_all_strategies()
-        
+
         # Apply filters
         if enabled is not None:
-            strategies = [s for s in strategies if s.get('enabled') == enabled]
-        
+            strategies = [s for s in strategies if s.get("enabled") == enabled]
+
         if symbol:
-            strategies = [s for s in strategies if s.get('symbol') == symbol.upper()]
-        
+            strategies = [s for s in strategies if s.get("symbol") == symbol.upper()]
+
         # Calculate counts
         all_strategies = _load_all_strategies()
-        enabled_count = sum(1 for s in all_strategies if s.get('enabled', True))
+        enabled_count = sum(1 for s in all_strategies if s.get("enabled", True))
         disabled_count = len(all_strategies) - enabled_count
-        
+
         return StrategyListResponse(
             items=[StrategyResponse(**s) for s in strategies],
             total=len(strategies),
             enabled_count=enabled_count,
-            disabled_count=disabled_count
+            disabled_count=disabled_count,
         )
-    
+
     except Exception as e:
         logger.error(f"Error listing strategies: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -198,21 +208,20 @@ async def list_strategies(
 async def get_strategy(strategy_id: str):
     """
     Get a specific strategy by ID.
-    
+
     Path Parameters:
         - strategy_id: Strategy identifier (e.g., EURUSD_H1)
-    
+
     Returns:
         Strategy configuration
     """
     strategy = _load_strategy(strategy_id)
-    
+
     if not strategy:
         raise HTTPException(
-            status_code=404,
-            detail=f"Strategy not found: {strategy_id}"
+            status_code=404, detail=f"Strategy not found: {strategy_id}"
         )
-    
+
     return StrategyResponse(**strategy)
 
 
@@ -220,45 +229,43 @@ async def get_strategy(strategy_id: str):
 async def create_strategy(strategy: StrategyCreate = Body(...)):
     """
     Create a new strategy.
-    
+
     Request Body:
         Strategy configuration (see StrategyCreate model)
-    
+
     Returns:
         Created strategy with metadata
     """
     try:
         # Convert to dict
         strategy_data = strategy.model_dump()
-        
+
         # Validate and prepare
-        is_valid, prepared_data, errors = validate_and_prepare(strategy_data, user="user")
-        
+        is_valid, prepared_data, errors = validate_and_prepare(
+            strategy_data, user="user"
+        )
+
         if not is_valid:
             raise HTTPException(
                 status_code=400,
-                detail={"message": "Validation failed", "errors": errors}
+                detail={"message": "Validation failed", "errors": errors},
             )
-        
-        strategy_id = prepared_data['id']
-        
+
+        strategy_id = prepared_data["id"]
+
         # Check if strategy already exists
         if _get_strategy_path(strategy_id).exists():
             raise HTTPException(
-                status_code=409,
-                detail=f"Strategy already exists: {strategy_id}"
+                status_code=409, detail=f"Strategy already exists: {strategy_id}"
             )
-        
+
         # Save strategy
         if not _save_strategy(strategy_id, prepared_data):
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to save strategy"
-            )
-        
+            raise HTTPException(status_code=500, detail="Failed to save strategy")
+
         logger.info(f"Created strategy: {strategy_id}")
         return StrategyResponse(**prepared_data)
-    
+
     except HTTPException:
         raise
     except Exception as e:
@@ -267,52 +274,45 @@ async def create_strategy(strategy: StrategyCreate = Body(...)):
 
 
 @router.put("/{strategy_id}", response_model=StrategyResponse)
-async def update_strategy(
-    strategy_id: str,
-    updates: StrategyUpdate = Body(...)
-):
+async def update_strategy(strategy_id: str, updates: StrategyUpdate = Body(...)):
     """
     Update an existing strategy.
-    
+
     Path Parameters:
         - strategy_id: Strategy identifier
-    
+
     Request Body:
         Fields to update (see StrategyUpdate model)
-    
+
     Returns:
         Updated strategy
     """
     try:
         # Load existing strategy
         existing = _load_strategy(strategy_id)
-        
+
         if not existing:
             raise HTTPException(
-                status_code=404,
-                detail=f"Strategy not found: {strategy_id}"
+                status_code=404, detail=f"Strategy not found: {strategy_id}"
             )
-        
+
         # Apply updates
         update_data = updates.model_dump(exclude_unset=True)
         existing.update(update_data)
-        
+
         # Validate and prepare
         is_valid, prepared_data, errors = validate_and_prepare(existing, user="user")
-        
+
         if not is_valid:
             raise HTTPException(
                 status_code=400,
-                detail={"message": "Validation failed", "errors": errors}
+                detail={"message": "Validation failed", "errors": errors},
             )
-        
+
         # Save updated strategy
         if not _save_strategy(strategy_id, prepared_data):
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to save strategy"
-            )
-        
+            raise HTTPException(status_code=500, detail="Failed to save strategy")
+
         logger.info(f"Updated strategy: {strategy_id}")
         return StrategyResponse(**prepared_data)
 
@@ -338,16 +338,12 @@ async def delete_strategy(strategy_id: str):
         # Check if strategy exists
         if not _get_strategy_path(strategy_id).exists():
             raise HTTPException(
-                status_code=404,
-                detail=f"Strategy not found: {strategy_id}"
+                status_code=404, detail=f"Strategy not found: {strategy_id}"
             )
 
         # Delete strategy file
         if not _delete_strategy_file(strategy_id):
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to delete strategy"
-            )
+            raise HTTPException(status_code=500, detail="Failed to delete strategy")
 
         logger.info(f"Deleted strategy: {strategy_id}")
         return None
@@ -360,10 +356,7 @@ async def delete_strategy(strategy_id: str):
 
 
 @router.patch("/{strategy_id}/toggle", response_model=StrategyResponse)
-async def toggle_strategy(
-    strategy_id: str,
-    request: StrategyToggleRequest = Body(...)
-):
+async def toggle_strategy(strategy_id: str, request: StrategyToggleRequest = Body(...)):
     """
     Enable or disable a strategy.
 
@@ -382,20 +375,16 @@ async def toggle_strategy(
 
         if not existing:
             raise HTTPException(
-                status_code=404,
-                detail=f"Strategy not found: {strategy_id}"
+                status_code=404, detail=f"Strategy not found: {strategy_id}"
             )
 
         # Update enabled status
-        existing['enabled'] = request.enabled
-        existing['updated_at'] = datetime.utcnow().isoformat() + 'Z'
+        existing["enabled"] = request.enabled
+        existing["updated_at"] = datetime.utcnow().isoformat() + "Z"
 
         # Save updated strategy
         if not _save_strategy(strategy_id, existing):
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to save strategy"
-            )
+            raise HTTPException(status_code=500, detail="Failed to save strategy")
 
         status = "enabled" if request.enabled else "disabled"
         logger.info(f"Strategy {strategy_id} {status}")
@@ -422,21 +411,17 @@ async def validate_strategy_endpoint(strategy_data: Dict[str, Any] = Body(...)):
     try:
         is_valid, errors = validate_strategy(strategy_data)
 
-        return ValidationResponse(
-            is_valid=is_valid,
-            errors=errors
-        )
+        return ValidationResponse(is_valid=is_valid, errors=errors)
 
     except Exception as e:
         logger.error(f"Error validating strategy: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/{strategy_id}/duplicate", response_model=StrategyResponse, status_code=201)
-async def duplicate_strategy(
-    strategy_id: str,
-    new_name: str = Body(..., embed=True)
-):
+@router.post(
+    "/{strategy_id}/duplicate", response_model=StrategyResponse, status_code=201
+)
+async def duplicate_strategy(strategy_id: str, new_name: str = Body(..., embed=True)):
     """
     Duplicate an existing strategy with a new name.
 
@@ -455,20 +440,19 @@ async def duplicate_strategy(
 
         if not existing:
             raise HTTPException(
-                status_code=404,
-                detail=f"Strategy not found: {strategy_id}"
+                status_code=404, detail=f"Strategy not found: {strategy_id}"
             )
 
         # Create duplicate with new name
         duplicate = existing.copy()
-        duplicate['name'] = new_name
-        duplicate['description'] = f"Duplicate of {existing.get('name', strategy_id)}"
+        duplicate["name"] = new_name
+        duplicate["description"] = f"Duplicate of {existing.get('name', strategy_id)}"
 
         # Remove metadata to generate new ones
-        duplicate.pop('id', None)
-        duplicate.pop('created_at', None)
-        duplicate.pop('updated_at', None)
-        duplicate.pop('created_by', None)
+        duplicate.pop("id", None)
+        duplicate.pop("created_at", None)
+        duplicate.pop("updated_at", None)
+        duplicate.pop("created_by", None)
 
         # Validate and prepare
         is_valid, prepared_data, errors = validate_and_prepare(duplicate, user="user")
@@ -476,23 +460,21 @@ async def duplicate_strategy(
         if not is_valid:
             raise HTTPException(
                 status_code=400,
-                detail={"message": "Validation failed", "errors": errors}
+                detail={"message": "Validation failed", "errors": errors},
             )
 
-        new_strategy_id = prepared_data['id']
+        new_strategy_id = prepared_data["id"]
 
         # Check if new strategy already exists
         if _get_strategy_path(new_strategy_id).exists():
             raise HTTPException(
-                status_code=409,
-                detail=f"Strategy already exists: {new_strategy_id}"
+                status_code=409, detail=f"Strategy already exists: {new_strategy_id}"
             )
 
         # Save duplicated strategy
         if not _save_strategy(new_strategy_id, prepared_data):
             raise HTTPException(
-                status_code=500,
-                detail="Failed to save duplicated strategy"
+                status_code=500, detail="Failed to save duplicated strategy"
             )
 
         logger.info(f"Duplicated strategy {strategy_id} to {new_strategy_id}")
@@ -503,4 +485,3 @@ async def duplicate_strategy(
     except Exception as e:
         logger.error(f"Error duplicating strategy: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-

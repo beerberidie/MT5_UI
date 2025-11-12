@@ -18,38 +18,39 @@ from backend.services.encryption_service import get_encryption_service
 
 class DatabaseStorage(StorageInterface):
     """SQLite database storage implementation."""
-    
+
     def __init__(self, db_path: str = "data/mt5_ui.db"):
         """
         Initialize database storage.
-        
+
         Args:
             db_path: Path to SQLite database file
         """
         self.db_path = Path(db_path)
-        
+
         # Ensure data directory exists
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Encryption service
         self.encryption = get_encryption_service()
-        
+
         # Initialize database schema
         self._initialize_database()
-    
+
     def _get_connection(self) -> sqlite3.Connection:
         """Get database connection."""
         conn = sqlite3.connect(str(self.db_path))
         conn.row_factory = sqlite3.Row  # Return rows as dictionaries
         return conn
-    
+
     def _initialize_database(self):
         """Initialize database schema."""
         conn = self._get_connection()
         cursor = conn.cursor()
-        
+
         # Accounts table
-        cursor.execute("""
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS accounts (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -60,10 +61,12 @@ class DatabaseStorage(StorageInterface):
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        """)
-        
+        """
+        )
+
         # API Integrations table
-        cursor.execute("""
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS api_integrations (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -76,10 +79,12 @@ class DatabaseStorage(StorageInterface):
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        """)
-        
+        """
+        )
+
         # Appearance Settings table
-        cursor.execute("""
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS appearance_settings (
                 id INTEGER PRIMARY KEY CHECK(id = 1),
                 density TEXT DEFAULT 'normal' CHECK(density IN ('compact', 'normal', 'comfortable')),
@@ -89,20 +94,24 @@ class DatabaseStorage(StorageInterface):
                 show_animations BOOLEAN DEFAULT 1,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        """)
-        
+        """
+        )
+
         # Cache table
-        cursor.execute("""
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS cache (
                 cache_key TEXT PRIMARY KEY,
                 data TEXT NOT NULL,
                 cached_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 expires_at TIMESTAMP NOT NULL
             )
-        """)
-        
+        """
+        )
+
         # RSS Feeds table
-        cursor.execute("""
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS rss_feeds (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -111,110 +120,128 @@ class DatabaseStorage(StorageInterface):
                 last_fetched TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        """)
-        
+        """
+        )
+
         # Create indexes
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_accounts_active ON accounts(is_active)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_cache_expires ON cache(expires_at)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_rss_enabled ON rss_feeds(enabled)")
-        
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_accounts_active ON accounts(is_active)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_cache_expires ON cache(expires_at)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_rss_enabled ON rss_feeds(enabled)"
+        )
+
         # Initialize appearance settings if not exists
         cursor.execute("SELECT COUNT(*) FROM appearance_settings WHERE id = 1")
         if cursor.fetchone()[0] == 0:
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO appearance_settings (id, density, theme, font_size, accent_color, show_animations)
                 VALUES (1, 'normal', 'dark', 14, '#3b82f6', 1)
-            """)
-        
+            """
+            )
+
         conn.commit()
         conn.close()
-    
+
     def _row_to_dict(self, row: sqlite3.Row) -> Dict[str, Any]:
         """Convert SQLite row to dictionary."""
         return dict(row) if row else {}
-    
+
     # ==================== ACCOUNTS ====================
-    
+
     async def get_accounts(self) -> List[Dict[str, Any]]:
         """Get all MT5 accounts."""
         conn = self._get_connection()
         cursor = conn.cursor()
-        
+
         cursor.execute("SELECT * FROM accounts ORDER BY created_at DESC")
         rows = cursor.fetchall()
         conn.close()
-        
+
         accounts = []
         for row in rows:
             account = self._row_to_dict(row)
             # Decrypt password
             if "password_encrypted" in account:
                 try:
-                    account["password"] = self.encryption.decrypt(account["password_encrypted"])
+                    account["password"] = self.encryption.decrypt(
+                        account["password_encrypted"]
+                    )
                 except Exception:
                     account["password"] = ""
             # Convert boolean
             account["is_active"] = bool(account.get("is_active", 0))
             accounts.append(account)
-        
+
         return accounts
-    
+
     async def get_account(self, account_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific account by ID."""
         conn = self._get_connection()
         cursor = conn.cursor()
-        
+
         cursor.execute("SELECT * FROM accounts WHERE id = ?", (account_id,))
         row = cursor.fetchone()
         conn.close()
-        
+
         if row:
             account = self._row_to_dict(row)
             if "password_encrypted" in account:
                 try:
-                    account["password"] = self.encryption.decrypt(account["password_encrypted"])
+                    account["password"] = self.encryption.decrypt(
+                        account["password_encrypted"]
+                    )
                 except Exception:
                     account["password"] = ""
             account["is_active"] = bool(account.get("is_active", 0))
             return account
-        
+
         return None
-    
+
     async def add_account(self, account: Dict[str, Any]) -> Dict[str, Any]:
         """Add a new MT5 account."""
         conn = self._get_connection()
         cursor = conn.cursor()
-        
+
         account_id = str(uuid.uuid4())
         password_encrypted = self.encryption.encrypt(account.get("password", ""))
-        
-        cursor.execute("""
+
+        cursor.execute(
+            """
             INSERT INTO accounts (id, name, login, password_encrypted, server, is_active, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, 0, ?, ?)
-        """, (
-            account_id,
-            account.get("name", ""),
-            account.get("login", 0),
-            password_encrypted,
-            account.get("server", ""),
-            datetime.utcnow().isoformat(),
-            datetime.utcnow().isoformat()
-        ))
-        
+        """,
+            (
+                account_id,
+                account.get("name", ""),
+                account.get("login", 0),
+                password_encrypted,
+                account.get("server", ""),
+                datetime.utcnow().isoformat(),
+                datetime.utcnow().isoformat(),
+            ),
+        )
+
         conn.commit()
         conn.close()
-        
+
         return await self.get_account(account_id)
-    
-    async def update_account(self, account_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+
+    async def update_account(
+        self, account_id: str, updates: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Update an existing account."""
         conn = self._get_connection()
         cursor = conn.cursor()
-        
+
         # Build update query dynamically
         update_fields = []
         values = []
-        
+
         if "name" in updates:
             update_fields.append("name = ?")
             values.append(updates["name"])
@@ -227,74 +254,76 @@ class DatabaseStorage(StorageInterface):
         if "server" in updates:
             update_fields.append("server = ?")
             values.append(updates["server"])
-        
+
         if not update_fields:
             conn.close()
             return await self.get_account(account_id)
-        
+
         update_fields.append("updated_at = ?")
         values.append(datetime.utcnow().isoformat())
         values.append(account_id)
-        
+
         query = f"UPDATE accounts SET {', '.join(update_fields)} WHERE id = ?"
         cursor.execute(query, values)
-        
+
         conn.commit()
         conn.close()
-        
+
         return await self.get_account(account_id)
-    
+
     async def remove_account(self, account_id: str) -> bool:
         """Remove an account."""
         conn = self._get_connection()
         cursor = conn.cursor()
-        
+
         cursor.execute("DELETE FROM accounts WHERE id = ?", (account_id,))
         deleted = cursor.rowcount > 0
-        
+
         conn.commit()
         conn.close()
-        
+
         return deleted
-    
+
     async def get_active_account(self) -> Optional[Dict[str, Any]]:
         """Get the currently active account."""
         conn = self._get_connection()
         cursor = conn.cursor()
-        
+
         cursor.execute("SELECT * FROM accounts WHERE is_active = 1 LIMIT 1")
         row = cursor.fetchone()
         conn.close()
-        
+
         if row:
             account = self._row_to_dict(row)
             if "password_encrypted" in account:
                 try:
-                    account["password"] = self.encryption.decrypt(account["password_encrypted"])
+                    account["password"] = self.encryption.decrypt(
+                        account["password_encrypted"]
+                    )
                 except Exception:
                     account["password"] = ""
             account["is_active"] = True
             return account
-        
+
         return None
-    
+
     async def set_active_account(self, account_id: str) -> bool:
         """Set the active account."""
         conn = self._get_connection()
         cursor = conn.cursor()
-        
+
         # Check if account exists
         cursor.execute("SELECT COUNT(*) FROM accounts WHERE id = ?", (account_id,))
         if cursor.fetchone()[0] == 0:
             conn.close()
             return False
-        
+
         # Deactivate all accounts
         cursor.execute("UPDATE accounts SET is_active = 0")
-        
+
         # Activate the specified account
         cursor.execute("UPDATE accounts SET is_active = 1 WHERE id = ?", (account_id,))
-        
+
         conn.commit()
         conn.close()
 
@@ -317,7 +346,9 @@ class DatabaseStorage(StorageInterface):
             # Decrypt API key
             if "api_key_encrypted" in integration:
                 try:
-                    integration["api_key"] = self.encryption.decrypt(integration["api_key_encrypted"])
+                    integration["api_key"] = self.encryption.decrypt(
+                        integration["api_key_encrypted"]
+                    )
                 except Exception:
                     integration["api_key"] = ""
             # Parse config JSON
@@ -330,7 +361,9 @@ class DatabaseStorage(StorageInterface):
 
         return integrations
 
-    async def get_api_integration(self, integration_id: str) -> Optional[Dict[str, Any]]:
+    async def get_api_integration(
+        self, integration_id: str
+    ) -> Optional[Dict[str, Any]]:
         """Get a specific API integration by ID."""
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -343,7 +376,9 @@ class DatabaseStorage(StorageInterface):
             integration = self._row_to_dict(row)
             if "api_key_encrypted" in integration:
                 try:
-                    integration["api_key"] = self.encryption.decrypt(integration["api_key_encrypted"])
+                    integration["api_key"] = self.encryption.decrypt(
+                        integration["api_key_encrypted"]
+                    )
                 except Exception:
                     integration["api_key"] = ""
             if "config" in integration and integration["config"]:
@@ -364,26 +399,31 @@ class DatabaseStorage(StorageInterface):
         api_key_encrypted = self.encryption.encrypt(integration.get("api_key", ""))
         config_json = json.dumps(integration.get("config", {}))
 
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO api_integrations (id, name, type, api_key_encrypted, base_url, config, status, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, 'inactive', ?, ?)
-        """, (
-            integration_id,
-            integration.get("name", ""),
-            integration.get("type", "custom"),
-            api_key_encrypted,
-            integration.get("base_url", ""),
-            config_json,
-            datetime.utcnow().isoformat(),
-            datetime.utcnow().isoformat()
-        ))
+        """,
+            (
+                integration_id,
+                integration.get("name", ""),
+                integration.get("type", "custom"),
+                api_key_encrypted,
+                integration.get("base_url", ""),
+                config_json,
+                datetime.utcnow().isoformat(),
+                datetime.utcnow().isoformat(),
+            ),
+        )
 
         conn.commit()
         conn.close()
 
         return await self.get_api_integration(integration_id)
 
-    async def update_api_integration(self, integration_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def update_api_integration(
+        self, integration_id: str, updates: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Update an existing API integration."""
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -465,10 +505,12 @@ class DatabaseStorage(StorageInterface):
             "theme": "dark",
             "fontSize": 14,
             "accentColor": "#3b82f6",
-            "showAnimations": True
+            "showAnimations": True,
         }
 
-    async def update_appearance_settings(self, settings: Dict[str, Any]) -> Dict[str, Any]:
+    async def update_appearance_settings(
+        self, settings: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Update appearance settings."""
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -512,10 +554,14 @@ class DatabaseStorage(StorageInterface):
         cursor = conn.cursor()
 
         # Clean up expired cache first
-        cursor.execute("DELETE FROM cache WHERE expires_at < ?", (datetime.utcnow().isoformat(),))
+        cursor.execute(
+            "DELETE FROM cache WHERE expires_at < ?", (datetime.utcnow().isoformat(),)
+        )
 
-        cursor.execute("SELECT data FROM cache WHERE cache_key = ? AND expires_at > ?",
-                      (cache_key, datetime.utcnow().isoformat()))
+        cursor.execute(
+            "SELECT data FROM cache WHERE cache_key = ? AND expires_at > ?",
+            (cache_key, datetime.utcnow().isoformat()),
+        )
         row = cursor.fetchone()
         conn.commit()
         conn.close()
@@ -528,7 +574,9 @@ class DatabaseStorage(StorageInterface):
 
         return None
 
-    async def set_cached_data(self, cache_key: str, data: Dict[str, Any], ttl_seconds: int = 3600) -> bool:
+    async def set_cached_data(
+        self, cache_key: str, data: Dict[str, Any], ttl_seconds: int = 3600
+    ) -> bool:
         """Set cached data with TTL."""
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -537,10 +585,13 @@ class DatabaseStorage(StorageInterface):
         expires_at = (datetime.utcnow() + timedelta(seconds=ttl_seconds)).isoformat()
 
         # Use INSERT OR REPLACE to handle updates
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT OR REPLACE INTO cache (cache_key, data, cached_at, expires_at)
             VALUES (?, ?, ?, ?)
-        """, (cache_key, data_json, datetime.utcnow().isoformat(), expires_at))
+        """,
+            (cache_key, data_json, datetime.utcnow().isoformat(), expires_at),
+        )
 
         conn.commit()
         conn.close()
@@ -588,16 +639,19 @@ class DatabaseStorage(StorageInterface):
 
         feed_id = str(uuid.uuid4())
 
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO rss_feeds (id, name, url, enabled, created_at)
             VALUES (?, ?, ?, ?, ?)
-        """, (
-            feed_id,
-            feed.get("name", ""),
-            feed.get("url", ""),
-            1 if feed.get("enabled", True) else 0,
-            datetime.utcnow().isoformat()
-        ))
+        """,
+            (
+                feed_id,
+                feed.get("name", ""),
+                feed.get("url", ""),
+                1 if feed.get("enabled", True) else 0,
+                datetime.utcnow().isoformat(),
+            ),
+        )
 
         conn.commit()
         conn.close()
@@ -608,7 +662,7 @@ class DatabaseStorage(StorageInterface):
             "url": feed.get("url", ""),
             "enabled": feed.get("enabled", True),
             "last_fetched": None,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
     async def remove_rss_feed(self, feed_id: str) -> bool:
@@ -624,7 +678,9 @@ class DatabaseStorage(StorageInterface):
 
         return deleted
 
-    async def update_rss_feed(self, feed_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def update_rss_feed(
+        self, feed_id: str, updates: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Update an RSS feed."""
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -678,4 +734,3 @@ class DatabaseStorage(StorageInterface):
             return feed
 
         return None
-

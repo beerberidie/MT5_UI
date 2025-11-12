@@ -20,7 +20,7 @@ from .monitoring import (
     get_trading_metrics,
     get_error_metrics,
     get_security_metrics,
-    log_metrics_snapshot
+    log_metrics_snapshot,
 )
 
 router = APIRouter(prefix="/api/monitoring", tags=["monitoring"])
@@ -32,7 +32,7 @@ limiter = Limiter(key_func=get_remote_address)
 def get_health(request: Request):
     """
     Comprehensive health check endpoint.
-    
+
     Returns:
     - Overall health status (healthy/degraded/unhealthy)
     - System checks (MT5 connection, directories, disk space)
@@ -49,7 +49,7 @@ def get_health(request: Request):
 def get_metrics(request: Request):
     """
     Get current application metrics.
-    
+
     Returns:
     - Request counts by endpoint
     - Error rates
@@ -65,7 +65,7 @@ def get_metrics(request: Request):
 def get_trading_metrics_endpoint(request: Request):
     """
     Get trading-specific metrics.
-    
+
     Returns:
     - Today's orders (total, successful, failed)
     - Today's deals and P&L
@@ -79,7 +79,7 @@ def get_trading_metrics_endpoint(request: Request):
 def get_error_metrics_endpoint(request: Request):
     """
     Get error metrics.
-    
+
     Returns:
     - Recent errors (last 24 hours)
     - Errors by scope
@@ -93,7 +93,7 @@ def get_error_metrics_endpoint(request: Request):
 def get_security_metrics_endpoint(request: Request):
     """
     Get security metrics.
-    
+
     Returns:
     - Recent security events (last 24 hours)
     - Events by type
@@ -108,7 +108,7 @@ def get_security_metrics_endpoint(request: Request):
 def create_metrics_snapshot(request: Request):
     """
     Create a metrics snapshot and log to CSV.
-    
+
     This endpoint can be called periodically (e.g., every hour)
     to create historical metrics data.
     """
@@ -121,7 +121,7 @@ def create_metrics_snapshot(request: Request):
 def reset_metrics(request: Request):
     """
     Reset application metrics.
-    
+
     This endpoint can be called daily to reset counters
     while preserving historical data in CSV logs.
     """
@@ -134,7 +134,7 @@ def reset_metrics(request: Request):
 def get_status(request: Request):
     """
     Quick status check (lightweight version of /health).
-    
+
     Returns:
     - Status (healthy/degraded/unhealthy)
     - MT5 connection status
@@ -142,23 +142,25 @@ def get_status(request: Request):
     - Uptime
     """
     metrics = metrics_collector.get_metrics()
-    
+
     # Determine status
     issues = []
     if not metrics["system"]["mt5_connected"]:
         issues.append("MT5 disconnected")
     if metrics["requests"]["error_rate"] > 0.1:
         issues.append("High error rate")
-    
-    status = "healthy" if not issues else "degraded" if len(issues) == 1 else "unhealthy"
-    
+
+    status = (
+        "healthy" if not issues else "degraded" if len(issues) == 1 else "unhealthy"
+    )
+
     return {
         "status": status,
         "issues": issues,
         "mt5_connected": metrics["system"]["mt5_connected"],
         "error_rate": metrics["requests"]["error_rate"],
         "uptime_hours": metrics["uptime_hours"],
-        "timestamp": metrics["timestamp"]
+        "timestamp": metrics["timestamp"],
     }
 
 
@@ -167,7 +169,7 @@ def get_status(request: Request):
 def get_alerts(request: Request):
     """
     Get current system alerts.
-    
+
     Returns alerts for:
     - MT5 connection issues
     - High error rates
@@ -175,62 +177,68 @@ def get_alerts(request: Request):
     - Performance degradation
     """
     alerts = []
-    
+
     metrics = metrics_collector.get_metrics()
     error_metrics = get_error_metrics()
     security_metrics = get_security_metrics()
-    
+
     # MT5 connection alert
     if not metrics["system"]["mt5_connected"]:
-        alerts.append({
-            "severity": "critical",
-            "category": "system",
-            "message": "MT5 terminal not connected",
-            "timestamp": metrics["timestamp"]
-        })
-    
+        alerts.append(
+            {
+                "severity": "critical",
+                "category": "system",
+                "message": "MT5 terminal not connected",
+                "timestamp": metrics["timestamp"],
+            }
+        )
+
     # High error rate alert
     if metrics["requests"]["error_rate"] > 0.1:
-        alerts.append({
-            "severity": "warning",
-            "category": "performance",
-            "message": f"High error rate: {metrics['requests']['error_rate']:.1%}",
-            "timestamp": metrics["timestamp"]
-        })
-    
+        alerts.append(
+            {
+                "severity": "warning",
+                "category": "performance",
+                "message": f"High error rate: {metrics['requests']['error_rate']:.1%}",
+                "timestamp": metrics["timestamp"],
+            }
+        )
+
     # Recent errors alert
     if error_metrics.get("recent_errors", 0) > 100:
-        alerts.append({
-            "severity": "warning",
-            "category": "errors",
-            "message": f"{error_metrics['recent_errors']} errors in last 24 hours",
-            "timestamp": metrics["timestamp"]
-        })
-    
+        alerts.append(
+            {
+                "severity": "warning",
+                "category": "errors",
+                "message": f"{error_metrics['recent_errors']} errors in last 24 hours",
+                "timestamp": metrics["timestamp"],
+            }
+        )
+
     # Security alert
     invalid_attempts = security_metrics.get("invalid_api_key_attempts", 0)
     if invalid_attempts > 10:
-        alerts.append({
-            "severity": "warning",
-            "category": "security",
-            "message": f"{invalid_attempts} invalid API key attempts in last 24 hours",
-            "timestamp": metrics["timestamp"]
-        })
-    
+        alerts.append(
+            {
+                "severity": "warning",
+                "category": "security",
+                "message": f"{invalid_attempts} invalid API key attempts in last 24 hours",
+                "timestamp": metrics["timestamp"],
+            }
+        )
+
     # Trading failure alert
     if metrics["trading"]["orders_failed"] > 10:
-        alerts.append({
-            "severity": "warning",
-            "category": "trading",
-            "message": f"{metrics['trading']['orders_failed']} failed orders",
-            "timestamp": metrics["timestamp"]
-        })
-    
-    return {
-        "alerts": alerts,
-        "count": len(alerts),
-        "timestamp": metrics["timestamp"]
-    }
+        alerts.append(
+            {
+                "severity": "warning",
+                "category": "trading",
+                "message": f"{metrics['trading']['orders_failed']} failed orders",
+                "timestamp": metrics["timestamp"],
+            }
+        )
+
+    return {"alerts": alerts, "count": len(alerts), "timestamp": metrics["timestamp"]}
 
 
 @router.get("/performance")
@@ -238,32 +246,32 @@ def get_alerts(request: Request):
 def get_performance(request: Request):
     """
     Get performance metrics.
-    
+
     Returns:
     - Request latencies (average, p95)
     - Throughput (requests per second)
     - Error rates by endpoint
     """
     metrics = metrics_collector.get_metrics()
-    
+
     # Calculate throughput
     uptime_seconds = metrics["uptime_seconds"]
     total_requests = metrics["requests"]["total"]
     requests_per_second = total_requests / max(uptime_seconds, 1)
-    
+
     return {
         "latency": metrics["latency"],
         "throughput": {
             "requests_per_second": requests_per_second,
             "total_requests": total_requests,
-            "uptime_seconds": uptime_seconds
+            "uptime_seconds": uptime_seconds,
         },
         "errors": {
             "total": metrics["requests"]["errors"],
             "rate": metrics["requests"]["error_rate"],
-            "by_endpoint": metrics["requests"].get("errors_by_endpoint", {})
+            "by_endpoint": metrics["requests"].get("errors_by_endpoint", {}),
         },
-        "timestamp": metrics["timestamp"]
+        "timestamp": metrics["timestamp"],
     }
 
 
@@ -272,7 +280,7 @@ def get_performance(request: Request):
 def get_dashboard_data(request: Request):
     """
     Get all data needed for monitoring dashboard.
-    
+
     Returns comprehensive monitoring data in a single request:
     - Health status
     - Metrics
@@ -282,10 +290,9 @@ def get_dashboard_data(request: Request):
     """
     health = get_system_health()
     alerts_data = get_alerts(request)
-    
+
     return {
         "health": health,
         "alerts": alerts_data["alerts"],
-        "timestamp": health["timestamp"]
+        "timestamp": health["timestamp"],
     }
-

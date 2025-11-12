@@ -1,6 +1,7 @@
 """
 Integration tests for MT5 Trading Workstation API with authentication and security scenarios.
 """
+
 import os
 import json
 import tempfile
@@ -14,14 +15,14 @@ import backend.config as config_module
 
 class TestAuthenticationIntegration:
     """Test authentication flows and security scenarios."""
-    
+
     def test_order_without_api_key_when_required(self, temp_dirs, fake_mt5):
         """Test that orders are rejected when API key is required but not provided."""
         # Clear any existing dependency overrides
         app_module.app.dependency_overrides.clear()
 
         # Set API key requirement
-        with patch.object(app_module, 'AUGMENT_API_KEY', 'test-key-123'):
+        with patch.object(app_module, "AUGMENT_API_KEY", "test-key-123"):
             # Create client without dependency override
             client = TestClient(app_module.app)
 
@@ -31,20 +32,20 @@ class TestAuthenticationIntegration:
                 "volume": 0.01,
                 "deviation": 10,
                 "comment": "test",
-                "magic": 1
+                "magic": 1,
             }
 
             response = client.post("/api/order", json=payload)
             assert response.status_code == 401
             assert "invalid_api_key" in response.json()["detail"]
-    
+
     def test_order_with_valid_api_key(self, temp_dirs, fake_mt5):
         """Test that orders succeed with valid API key."""
         # Clear any existing dependency overrides
         app_module.app.dependency_overrides.clear()
 
         # Patch the AUGMENT_API_KEY at the app module level
-        with patch.object(app_module, 'AUGMENT_API_KEY', 'test-key-123'):
+        with patch.object(app_module, "AUGMENT_API_KEY", "test-key-123"):
             client = TestClient(app_module.app)
 
             payload = {
@@ -53,20 +54,20 @@ class TestAuthenticationIntegration:
                 "volume": 0.01,
                 "deviation": 10,
                 "comment": "test",
-                "magic": 1
+                "magic": 1,
             }
 
             headers = {"X-API-Key": "test-key-123"}
             response = client.post("/api/order", json=payload, headers=headers)
             assert response.status_code == 200
             assert "result_code" in response.json()
-    
+
     def test_order_with_invalid_api_key(self, temp_dirs, fake_mt5):
         """Test that orders are rejected with invalid API key."""
         # Clear any existing dependency overrides
         app_module.app.dependency_overrides.clear()
 
-        with patch.object(app_module, 'AUGMENT_API_KEY', 'test-key-123'):
+        with patch.object(app_module, "AUGMENT_API_KEY", "test-key-123"):
             client = TestClient(app_module.app)
 
             payload = {
@@ -75,7 +76,7 @@ class TestAuthenticationIntegration:
                 "volume": 0.01,
                 "deviation": 10,
                 "comment": "test",
-                "magic": 1
+                "magic": 1,
             }
 
             headers = {"X-API-Key": "wrong-key"}
@@ -102,7 +103,7 @@ class TestRateLimitingIntegration:
             "volume": 0.01,
             "deviation": 10,
             "comment": "test",
-            "magic": 1
+            "magic": 1,
         }
 
         # Make requests up to the limit (10/minute)
@@ -134,22 +135,22 @@ class TestVolumeValidationIntegration:
 
         client = TestClient(app_module.app)
         app_module.app.dependency_overrides[app_module.require_api_key] = lambda: None
-        
+
         payload = {
             "canonical": "EURUSD",
             "side": "buy",
             "volume": 0.001,  # Below minimum of 0.01
             "deviation": 10,
-            "comment": "test", 
-            "magic": 1
+            "comment": "test",
+            "magic": 1,
         }
-        
+
         response = client.post("/api/order", json=payload)
         assert response.status_code == 400
         assert "VOLUME_TOO_SMALL" in str(response.json())
-        
+
         app_module.app.dependency_overrides.clear()
-    
+
     def test_volume_rounding(self, temp_dirs, fake_mt5):
         """Test that volumes are properly rounded to valid steps."""
         # Clear rate limits for this test
@@ -157,47 +158,47 @@ class TestVolumeValidationIntegration:
 
         client = TestClient(app_module.app)
         app_module.app.dependency_overrides[app_module.require_api_key] = lambda: None
-        
+
         payload = {
-            "canonical": "EURUSD", 
+            "canonical": "EURUSD",
             "side": "buy",
             "volume": 0.015,  # Should round to 0.02 (step 0.01)
             "deviation": 10,
             "comment": "test",
-            "magic": 1
+            "magic": 1,
         }
-        
+
         response = client.post("/api/order", json=payload)
         assert response.status_code == 200
-        
+
         app_module.app.dependency_overrides.clear()
 
 
 class TestInputValidationIntegration:
     """Test input validation for security."""
-    
+
     def test_path_traversal_protection_ticks(self, temp_dirs, fake_mt5):
         """Test that path traversal attempts are blocked in ticks endpoint."""
         client = TestClient(app_module.app)
-        
+
         # Attempt path traversal
         response = client.get("/api/ticks?canonical=../../../etc/passwd")
         assert response.status_code == 400
         assert "invalid_symbol_format" in response.json()["detail"]
-    
+
     def test_path_traversal_protection_bars(self, temp_dirs, fake_mt5):
         """Test that path traversal attempts are blocked in bars endpoint."""
         client = TestClient(app_module.app)
-        
+
         # Attempt path traversal
         response = client.get("/api/bars?canonical=../../../etc/passwd")
         assert response.status_code == 400
         assert "invalid_symbol_format" in response.json()["detail"]
-    
+
     def test_invalid_timeframe_rejection(self, temp_dirs, fake_mt5):
         """Test that invalid timeframes are rejected."""
         client = TestClient(app_module.app)
-        
+
         response = client.get("/api/bars?canonical=EURUSD&tf=INVALID")
         assert response.status_code == 400
         assert "invalid_timeframe" in response.json()["detail"]
@@ -205,7 +206,7 @@ class TestInputValidationIntegration:
 
 class TestErrorHandlingIntegration:
     """Test error handling and logging."""
-    
+
     def test_mt5_unavailable_error_handling(self, temp_dirs):
         """Test proper error handling when MT5 is unavailable."""
         # Clear rate limits for this test
@@ -216,57 +217,63 @@ class TestErrorHandlingIntegration:
             def order_send(self, **kwargs):
                 raise RuntimeError("MT5 not connected")
 
-        with patch.object(app_module, 'mt5', FailingMT5Client()):
+        with patch.object(app_module, "mt5", FailingMT5Client()):
             client = TestClient(app_module.app)
-            app_module.app.dependency_overrides[app_module.require_api_key] = lambda: None
-            
+            app_module.app.dependency_overrides[app_module.require_api_key] = (
+                lambda: None
+            )
+
             payload = {
                 "canonical": "EURUSD",
                 "side": "buy",
                 "volume": 0.01,
                 "deviation": 10,
                 "comment": "test",
-                "magic": 1
+                "magic": 1,
             }
-            
+
             response = client.post("/api/order", json=payload)
             assert response.status_code == 503
             assert "MT5_UNAVAILABLE" in str(response.json())
-            
+
             app_module.app.dependency_overrides.clear()
 
 
 class TestSecurityLoggingIntegration:
     """Test security event logging."""
-    
+
     def test_security_events_logged(self, temp_dirs, fake_mt5):
         """Test that security events are properly logged."""
         # Clear rate limits for this test
         app_module.limiter.reset()
 
-        with patch.object(app_module, 'AUGMENT_API_KEY', 'test-key-123'):
+        with patch.object(app_module, "AUGMENT_API_KEY", "test-key-123"):
             client = TestClient(app_module.app)
-            
+
             payload = {
                 "canonical": "EURUSD",
                 "side": "buy",
                 "volume": 0.01,
                 "deviation": 10,
                 "comment": "test",
-                "magic": 1
+                "magic": 1,
             }
-            
+
             # Make request with wrong API key
             headers = {"X-API-Key": "wrong-key"}
             response = client.post("/api/order", json=payload, headers=headers)
             assert response.status_code == 401
-            
+
             # Check that security log was created
             security_log_path = os.path.join(temp_dirs["logs"], "security.csv")
             assert os.path.exists(security_log_path)
-            
+
             # Read and verify log content
             from backend.csv_io import read_csv_rows
+
             log_entries = read_csv_rows(security_log_path)
             assert len(log_entries) > 0
-            assert any("invalid_api_key_attempt" in entry.get("event_type", "") for entry in log_entries)
+            assert any(
+                "invalid_api_key_attempt" in entry.get("event_type", "")
+                for entry in log_entries
+            )

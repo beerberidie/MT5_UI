@@ -21,4 +21,3 @@ __all__ = [
     "confidence_score",
     "schedule_action",
 ]
-

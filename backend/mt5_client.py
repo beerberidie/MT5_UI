@@ -53,19 +53,22 @@ class MT5Client:
         for symbol in all_symbols:
             symbol_dict = symbol._asdict()
             # Check if symbol is visible in Market Watch
-            if symbol_dict.get('visible', False):
+            if symbol_dict.get("visible", False):
                 # Get current tick data for the symbol
                 tick = mt5.symbol_info_tick(symbol.name)
                 if tick:
                     tick_dict = tick._asdict()
-                    symbol_dict.update({
-                        'bid': tick_dict.get('bid', 0.0),
-                        'ask': tick_dict.get('ask', 0.0),
-                        'last': tick_dict.get('last', 0.0),
-                        'spread': tick_dict.get('ask', 0.0) - tick_dict.get('bid', 0.0),
-                        'time': tick_dict.get('time', 0),
-                        'volume': tick_dict.get('volume', 0)
-                    })
+                    symbol_dict.update(
+                        {
+                            "bid": tick_dict.get("bid", 0.0),
+                            "ask": tick_dict.get("ask", 0.0),
+                            "last": tick_dict.get("last", 0.0),
+                            "spread": tick_dict.get("ask", 0.0)
+                            - tick_dict.get("bid", 0.0),
+                            "time": tick_dict.get("time", 0),
+                            "volume": tick_dict.get("volume", 0),
+                        }
+                    )
                 market_watch_symbols.append(symbol_dict)
 
         return market_watch_symbols
@@ -86,7 +89,9 @@ class MT5Client:
             return {}
         return tick._asdict()
 
-    def copy_rates_from_pos(self, symbol: str, timeframe, start_pos: int, count: int) -> list:
+    def copy_rates_from_pos(
+        self, symbol: str, timeframe, start_pos: int, count: int
+    ) -> list:
         """Get historical rates data."""
         self.init()
         rates = mt5.copy_rates_from_pos(symbol, timeframe, start_pos, count)
@@ -192,7 +197,9 @@ class MT5Client:
         }
 
         if order_type not in order_type_map:
-            raise ValueError(f"Invalid order type: {order_type}. Must be one of: {list(order_type_map.keys())}")
+            raise ValueError(
+                f"Invalid order type: {order_type}. Must be one of: {list(order_type_map.keys())}"
+            )
 
         # Ensure symbol is selected
         mt5.symbol_select(symbol, True)
@@ -244,7 +251,12 @@ class MT5Client:
         self.init()
         pos_list = mt5.positions_get(ticket=ticket)
         if not pos_list:
-            return {"retcode": -1, "order": 0, "comment": f"Position {ticket} not found", "last_error": mt5.last_error()}
+            return {
+                "retcode": -1,
+                "order": 0,
+                "comment": f"Position {ticket} not found",
+                "last_error": mt5.last_error(),
+            }
         pos = pos_list[0]._asdict()
         symbol = pos.get("symbol")
         volume = float(pos.get("volume") or 0)
@@ -253,7 +265,12 @@ class MT5Client:
         mt5.symbol_select(symbol, True)
         tick = mt5.symbol_info_tick(symbol)
         if tick is None:
-            return {"retcode": -2, "order": 0, "comment": f"No tick data for {symbol}", "last_error": mt5.last_error()}
+            return {
+                "retcode": -2,
+                "order": 0,
+                "comment": f"No tick data for {symbol}",
+                "last_error": mt5.last_error(),
+            }
         if ptype == mt5.POSITION_TYPE_BUY:
             order_type = mt5.ORDER_TYPE_SELL
             price = float(tick.bid)
@@ -281,7 +298,15 @@ class MT5Client:
             "last_error": mt5.last_error(),
         }
 
-    def order_modify(self, ticket: int, *, price: float | None = None, sl: float | None = None, tp: float | None = None, expiration: int | None = None) -> dict:
+    def order_modify(
+        self,
+        ticket: int,
+        *,
+        price: float | None = None,
+        sl: float | None = None,
+        tp: float | None = None,
+        expiration: int | None = None,
+    ) -> dict:
         """Modify an existing pending order's price and/or SL/TP."""
         self.init()
         req = {
@@ -315,7 +340,7 @@ class MT5Client:
         if rates is None:
             return []
         # Handle both numpy arrays and lists
-        return rates.tolist() if hasattr(rates, 'tolist') else list(rates)
+        return rates.tolist() if hasattr(rates, "tolist") else list(rates)
 
     def copy_ticks_range(self, symbol: str, date_from, date_to, flags=None) -> list:
         """Get tick data for a specific date range."""
@@ -356,4 +381,3 @@ class MT5Client:
         """Get total number of orders in trading history within specified date range."""
         self.init()
         return mt5.history_orders_total(date_from, date_to)
-

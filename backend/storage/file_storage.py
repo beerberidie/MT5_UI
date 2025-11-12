@@ -19,11 +19,11 @@ from backend.services.encryption_service import get_encryption_service
 
 class FileStorage(StorageInterface):
     """File-based storage implementation using JSON files."""
-    
+
     def __init__(self, config_dir: str = "config", data_dir: str = "data"):
         """
         Initialize file storage.
-        
+
         Args:
             config_dir: Directory for configuration files
             data_dir: Directory for data/cache files
@@ -31,71 +31,73 @@ class FileStorage(StorageInterface):
         self.config_dir = Path(config_dir)
         self.data_dir = Path(data_dir)
         self.cache_dir = self.data_dir / "cache"
-        
+
         # Ensure directories exist
         self.config_dir.mkdir(parents=True, exist_ok=True)
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # File paths
         self.accounts_file = self.config_dir / "accounts.json"
         self.integrations_file = self.config_dir / "api_integrations.json"
         self.appearance_file = self.config_dir / "appearance.json"
         self.rss_feeds_file = self.config_dir / "rss_feeds.json"
-        
+
         # Encryption service
         self.encryption = get_encryption_service()
-        
+
         # Initialize files if they don't exist
         self._initialize_files()
-    
+
     def _initialize_files(self):
         """Initialize JSON files with default data if they don't exist."""
         if not self.accounts_file.exists():
-            self._write_json(self.accounts_file, {
-                "accounts": [],
-                "active_account_id": None
-            })
-        
+            self._write_json(
+                self.accounts_file, {"accounts": [], "active_account_id": None}
+            )
+
         if not self.integrations_file.exists():
             self._write_json(self.integrations_file, {"integrations": []})
-        
+
         if not self.appearance_file.exists():
-            self._write_json(self.appearance_file, {
-                "density": "normal",
-                "theme": "dark",
-                "fontSize": 14,
-                "accentColor": "#3b82f6",
-                "showAnimations": True
-            })
-        
+            self._write_json(
+                self.appearance_file,
+                {
+                    "density": "normal",
+                    "theme": "dark",
+                    "fontSize": 14,
+                    "accentColor": "#3b82f6",
+                    "showAnimations": True,
+                },
+            )
+
         if not self.rss_feeds_file.exists():
             self._write_json(self.rss_feeds_file, {"feeds": []})
-    
+
     def _read_json(self, file_path: Path) -> Dict[str, Any]:
         """Read JSON file."""
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
             print(f"Error reading {file_path}: {e}")
             return {}
-    
+
     def _write_json(self, file_path: Path, data: Dict[str, Any]):
         """Write JSON file."""
         try:
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(file_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(f"Error writing {file_path}: {e}")
-    
+
     # ==================== ACCOUNTS ====================
-    
+
     async def get_accounts(self) -> List[Dict[str, Any]]:
         """Get all MT5 accounts."""
         data = self._read_json(self.accounts_file)
         accounts = data.get("accounts", [])
-        
+
         # Decrypt passwords for internal use (will be masked in API responses)
         decrypted_accounts = []
         for account in accounts:
@@ -106,9 +108,9 @@ class FileStorage(StorageInterface):
                 except Exception:
                     acc["password"] = ""
             decrypted_accounts.append(acc)
-        
+
         return decrypted_accounts
-    
+
     async def get_account(self, account_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific account by ID."""
         accounts = await self.get_accounts()
@@ -116,12 +118,12 @@ class FileStorage(StorageInterface):
             if account.get("id") == account_id:
                 return account
         return None
-    
+
     async def add_account(self, account: Dict[str, Any]) -> Dict[str, Any]:
         """Add a new MT5 account."""
         data = self._read_json(self.accounts_file)
         accounts = data.get("accounts", [])
-        
+
         # Generate ID and timestamps
         new_account = {
             "id": str(uuid.uuid4()),
@@ -131,23 +133,25 @@ class FileStorage(StorageInterface):
             "server": account.get("server", ""),
             "is_active": False,
             "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat()
+            "updated_at": datetime.utcnow().isoformat(),
         }
-        
+
         accounts.append(new_account)
         data["accounts"] = accounts
         self._write_json(self.accounts_file, data)
-        
+
         # Return account with decrypted password
         result = new_account.copy()
         result["password"] = account.get("password", "")
         return result
-    
-    async def update_account(self, account_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+
+    async def update_account(
+        self, account_id: str, updates: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Update an existing account."""
         data = self._read_json(self.accounts_file)
         accounts = data.get("accounts", [])
-        
+
         for i, account in enumerate(accounts):
             if account.get("id") == account_id:
                 # Update fields
@@ -156,31 +160,35 @@ class FileStorage(StorageInterface):
                 if "login" in updates:
                     account["login"] = updates["login"]
                 if "password" in updates:
-                    account["password_encrypted"] = self.encryption.encrypt(updates["password"])
+                    account["password_encrypted"] = self.encryption.encrypt(
+                        updates["password"]
+                    )
                 if "server" in updates:
                     account["server"] = updates["server"]
-                
+
                 account["updated_at"] = datetime.utcnow().isoformat()
                 accounts[i] = account
                 data["accounts"] = accounts
                 self._write_json(self.accounts_file, data)
-                
+
                 # Return updated account
                 result = account.copy()
                 if "password_encrypted" in result:
-                    result["password"] = self.encryption.decrypt(result["password_encrypted"])
+                    result["password"] = self.encryption.decrypt(
+                        result["password_encrypted"]
+                    )
                 return result
-        
+
         return None
-    
+
     async def remove_account(self, account_id: str) -> bool:
         """Remove an account."""
         data = self._read_json(self.accounts_file)
         accounts = data.get("accounts", [])
-        
+
         initial_count = len(accounts)
         accounts = [acc for acc in accounts if acc.get("id") != account_id]
-        
+
         if len(accounts) < initial_count:
             data["accounts"] = accounts
             # Clear active account if it was removed
@@ -188,100 +196,108 @@ class FileStorage(StorageInterface):
                 data["active_account_id"] = None
             self._write_json(self.accounts_file, data)
             return True
-        
+
         return False
-    
+
     async def get_active_account(self) -> Optional[Dict[str, Any]]:
         """Get the currently active account."""
         data = self._read_json(self.accounts_file)
         active_id = data.get("active_account_id")
-        
+
         if active_id:
             return await self.get_account(active_id)
-        
+
         return None
-    
+
     async def set_active_account(self, account_id: str) -> bool:
         """Set the active account."""
         data = self._read_json(self.accounts_file)
         accounts = data.get("accounts", [])
-        
+
         # Check if account exists
         account_exists = any(acc.get("id") == account_id for acc in accounts)
         if not account_exists:
             return False
-        
+
         # Deactivate all accounts
         for account in accounts:
             account["is_active"] = False
-        
+
         # Activate the specified account
         for account in accounts:
             if account.get("id") == account_id:
                 account["is_active"] = True
                 break
-        
+
         data["accounts"] = accounts
         data["active_account_id"] = account_id
         self._write_json(self.accounts_file, data)
-        
+
         return True
-    
+
     # ==================== API INTEGRATIONS ====================
-    
+
     async def get_api_integrations(self) -> List[Dict[str, Any]]:
         """Get all API integrations."""
         data = self._read_json(self.integrations_file)
         integrations = data.get("integrations", [])
-        
+
         # Decrypt API keys
         decrypted_integrations = []
         for integration in integrations:
             integ = integration.copy()
             if "api_key_encrypted" in integ:
                 try:
-                    integ["api_key"] = self.encryption.decrypt(integ["api_key_encrypted"])
+                    integ["api_key"] = self.encryption.decrypt(
+                        integ["api_key_encrypted"]
+                    )
                 except Exception:
                     integ["api_key"] = ""
             decrypted_integrations.append(integ)
-        
+
         return decrypted_integrations
-    
-    async def get_api_integration(self, integration_id: str) -> Optional[Dict[str, Any]]:
+
+    async def get_api_integration(
+        self, integration_id: str
+    ) -> Optional[Dict[str, Any]]:
         """Get a specific API integration by ID."""
         integrations = await self.get_api_integrations()
         for integration in integrations:
             if integration.get("id") == integration_id:
                 return integration
         return None
-    
+
     async def add_api_integration(self, integration: Dict[str, Any]) -> Dict[str, Any]:
         """Add a new API integration."""
         data = self._read_json(self.integrations_file)
         integrations = data.get("integrations", [])
-        
+
         new_integration = {
             "id": str(uuid.uuid4()),
             "name": integration.get("name", ""),
             "type": integration.get("type", "custom"),
-            "api_key_encrypted": self.encryption.encrypt(integration.get("api_key", "")),
+            "api_key_encrypted": self.encryption.encrypt(
+                integration.get("api_key", "")
+            ),
             "base_url": integration.get("base_url", ""),
             "config": integration.get("config", {}),
             "status": "inactive",
             "last_tested": None,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
-        
+
         integrations.append(new_integration)
         data["integrations"] = integrations
         self._write_json(self.integrations_file, data)
-        
+
         # Return with decrypted API key
         result = new_integration.copy()
         result["api_key"] = integration.get("api_key", "")
         return result
 
-    async def update_api_integration(self, integration_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def update_api_integration(
+        self, integration_id: str, updates: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Update an existing API integration."""
         data = self._read_json(self.integrations_file)
         integrations = data.get("integrations", [])
@@ -294,7 +310,9 @@ class FileStorage(StorageInterface):
                 if "type" in updates:
                     integration["type"] = updates["type"]
                 if "api_key" in updates:
-                    integration["api_key_encrypted"] = self.encryption.encrypt(updates["api_key"])
+                    integration["api_key_encrypted"] = self.encryption.encrypt(
+                        updates["api_key"]
+                    )
                 if "base_url" in updates:
                     integration["base_url"] = updates["base_url"]
                 if "config" in updates:
@@ -311,7 +329,9 @@ class FileStorage(StorageInterface):
                 # Return updated integration
                 result = integration.copy()
                 if "api_key_encrypted" in result:
-                    result["api_key"] = self.encryption.decrypt(result["api_key_encrypted"])
+                    result["api_key"] = self.encryption.decrypt(
+                        result["api_key_encrypted"]
+                    )
                 return result
 
         return None
@@ -322,7 +342,9 @@ class FileStorage(StorageInterface):
         integrations = data.get("integrations", [])
 
         initial_count = len(integrations)
-        integrations = [integ for integ in integrations if integ.get("id") != integration_id]
+        integrations = [
+            integ for integ in integrations if integ.get("id") != integration_id
+        ]
 
         if len(integrations) < initial_count:
             data["integrations"] = integrations
@@ -337,7 +359,9 @@ class FileStorage(StorageInterface):
         """Get appearance settings."""
         return self._read_json(self.appearance_file)
 
-    async def update_appearance_settings(self, settings: Dict[str, Any]) -> Dict[str, Any]:
+    async def update_appearance_settings(
+        self, settings: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Update appearance settings."""
         current = self._read_json(self.appearance_file)
         current.update(settings)
@@ -369,7 +393,9 @@ class FileStorage(StorageInterface):
             print(f"Error reading cache {cache_key}: {e}")
             return None
 
-    async def set_cached_data(self, cache_key: str, data: Dict[str, Any], ttl_seconds: int = 3600) -> bool:
+    async def set_cached_data(
+        self, cache_key: str, data: Dict[str, Any], ttl_seconds: int = 3600
+    ) -> bool:
         """Set cached data with TTL."""
         cache_file = self.cache_dir / f"{cache_key}.json"
 
@@ -377,7 +403,9 @@ class FileStorage(StorageInterface):
             cache_data = {
                 "data": data,
                 "cached_at": datetime.utcnow().isoformat(),
-                "expires_at": (datetime.utcnow() + timedelta(seconds=ttl_seconds)).isoformat()
+                "expires_at": (
+                    datetime.utcnow() + timedelta(seconds=ttl_seconds)
+                ).isoformat(),
             }
             self._write_json(cache_file, cache_data)
             return True
@@ -420,7 +448,7 @@ class FileStorage(StorageInterface):
             "url": feed.get("url", ""),
             "enabled": feed.get("enabled", True),
             "last_fetched": None,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         feeds.append(new_feed)
@@ -444,7 +472,9 @@ class FileStorage(StorageInterface):
 
         return False
 
-    async def update_rss_feed(self, feed_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def update_rss_feed(
+        self, feed_id: str, updates: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Update an RSS feed."""
         data = self._read_json(self.rss_feeds_file)
         feeds = data.get("feeds", [])
@@ -468,4 +498,3 @@ class FileStorage(StorageInterface):
                 return feed
 
         return None
-

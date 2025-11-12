@@ -7,8 +7,19 @@ This module defines SQLAlchemy models matching the AI Trading Platform Blueprint
 from datetime import datetime
 from typing import Optional, List
 from sqlalchemy import (
-    Boolean, Column, Integer, String, Numeric, Text, TIMESTAMP,
-    ForeignKey, CheckConstraint, Index, ARRAY, JSON, Enum as SQLEnum
+    Boolean,
+    Column,
+    Integer,
+    String,
+    Numeric,
+    Text,
+    TIMESTAMP,
+    ForeignKey,
+    CheckConstraint,
+    Index,
+    ARRAY,
+    JSON,
+    Enum as SQLEnum,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -22,6 +33,7 @@ Base = declarative_base()
 # Enums
 class TradeIdeaStatus(str, enum.Enum):
     """Trade idea status enum."""
+
     WAITING = "waiting"
     NEEDS_APPROVAL = "needs_approval"
     AUTO_EXECUTED = "auto_executed"
@@ -31,6 +43,7 @@ class TradeIdeaStatus(str, enum.Enum):
 
 class DecisionAction(str, enum.Enum):
     """Decision action enum."""
+
     AI_PROPOSED = "ai_proposed"
     AI_AUTO_EXECUTED = "ai_auto_executed"
     HUMAN_APPROVED = "human_approved"
@@ -43,6 +56,7 @@ class DecisionAction(str, enum.Enum):
 # Models
 class Strategy(Base):
     """Strategy definition table."""
+
     __tablename__ = "strategies"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -55,8 +69,15 @@ class Strategy(Base):
     forbidden_conditions = Column(JSON, nullable=False)
     risk_caps = Column(JSON, nullable=False)
     rr_expectation = Column(Numeric(5, 2), nullable=False)
-    created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow)
-    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(
+        TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow
+    )
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
 
     # Relationships
     trade_ideas = relationship("TradeIdea", back_populates="strategy")
@@ -65,6 +86,7 @@ class Strategy(Base):
 
 class RiskConfig(Base):
     """Global AI Control Panel + Risk Management configuration."""
+
     __tablename__ = "risk_config"
 
     id = Column(Boolean, primary_key=True, default=True)  # Single row table
@@ -78,15 +100,19 @@ class RiskConfig(Base):
     halt_on_drawdown = Column(Boolean, nullable=False, default=True)
     allow_off_watchlist_autotrade = Column(Boolean, nullable=False, default=False)
     last_halt_reason = Column(Text, nullable=True)
-    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    __table_args__ = (
-        CheckConstraint('id = true', name='single_row_check'),
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
+
+    __table_args__ = (CheckConstraint("id = true", name="single_row_check"),)
 
 
 class SnapshotMarket(Base):
     """Raw candle data snapshots."""
+
     __tablename__ = "snapshot_market"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -100,12 +126,18 @@ class SnapshotMarket(Base):
     captured_at = Column(TIMESTAMP(timezone=True), nullable=False)
 
     __table_args__ = (
-        Index('idx_snapshot_market_symbol_timeframe_captured', 'symbol', 'timeframe', 'captured_at'),
+        Index(
+            "idx_snapshot_market_symbol_timeframe_captured",
+            "symbol",
+            "timeframe",
+            "captured_at",
+        ),
     )
 
 
 class SnapshotIndicators(Base):
     """Computed indicators snapshots."""
+
     __tablename__ = "snapshot_indicators"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -119,12 +151,18 @@ class SnapshotIndicators(Base):
     captured_at = Column(TIMESTAMP(timezone=True), nullable=False)
 
     __table_args__ = (
-        Index('idx_snapshot_indicators_symbol_timeframe_captured', 'symbol', 'timeframe', 'captured_at'),
+        Index(
+            "idx_snapshot_indicators_symbol_timeframe_captured",
+            "symbol",
+            "timeframe",
+            "captured_at",
+        ),
     )
 
 
 class SnapshotCalendar(Base):
     """Economic calendar events snapshots."""
+
     __tablename__ = "snapshot_calendar"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -138,13 +176,14 @@ class SnapshotCalendar(Base):
     captured_at = Column(TIMESTAMP(timezone=True), nullable=False)
 
     __table_args__ = (
-        Index('idx_snapshot_calendar_currency_event_time', 'currency', 'event_time'),
-        Index('idx_snapshot_calendar_captured', 'captured_at'),
+        Index("idx_snapshot_calendar_currency_event_time", "currency", "event_time"),
+        Index("idx_snapshot_calendar_captured", "captured_at"),
     )
 
 
 class SnapshotNews(Base):
     """News + RSS feed snapshots."""
+
     __tablename__ = "snapshot_news"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -154,13 +193,12 @@ class SnapshotNews(Base):
     published_at = Column(TIMESTAMP(timezone=True), nullable=False)
     captured_at = Column(TIMESTAMP(timezone=True), nullable=False)
 
-    __table_args__ = (
-        Index('idx_snapshot_news_published', 'published_at'),
-    )
+    __table_args__ = (Index("idx_snapshot_news_published", "published_at"),)
 
 
 class SnapshotAccount(Base):
     """Account state snapshots from MT5."""
+
     __tablename__ = "snapshot_account"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -172,13 +210,12 @@ class SnapshotAccount(Base):
     open_positions = Column(Integer, nullable=False)
     captured_at = Column(TIMESTAMP(timezone=True), nullable=False)
 
-    __table_args__ = (
-        Index('idx_snapshot_account_captured', 'captured_at'),
-    )
+    __table_args__ = (Index("idx_snapshot_account_captured", "captured_at"),)
 
 
 class TradeIdea(Base):
     """Current + historical AI trade proposals."""
+
     __tablename__ = "trade_ideas"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -192,35 +229,47 @@ class TradeIdea(Base):
     rationale = Column(Text, nullable=False)
     confidence_score = Column(Numeric(5, 2), nullable=False)
     status = Column(SQLEnum(TradeIdeaStatus), nullable=False)
-    strategy_id = Column(UUID(as_uuid=True), ForeignKey('strategies.id'), nullable=True)
+    strategy_id = Column(UUID(as_uuid=True), ForeignKey("strategies.id"), nullable=True)
     snapshot_ref = Column(UUID(as_uuid=True), nullable=False)
-    created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow)
-    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(
+        TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow
+    )
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
 
     # Relationships
     strategy = relationship("Strategy", back_populates="trade_ideas")
     decision_history = relationship("DecisionHistory", back_populates="trade_idea")
 
     __table_args__ = (
-        CheckConstraint("direction IN ('buy', 'sell')", name='check_direction'),
-        Index('idx_trade_ideas_status', 'status'),
-        Index('idx_trade_ideas_symbol_created', 'symbol', 'created_at'),
+        CheckConstraint("direction IN ('buy', 'sell')", name="check_direction"),
+        Index("idx_trade_ideas_status", "status"),
+        Index("idx_trade_ideas_symbol_created", "symbol", "created_at"),
     )
 
 
 class DecisionHistory(Base):
     """Full audit trail of all AI and human decisions."""
+
     __tablename__ = "decision_history"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    occurred_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow)
+    occurred_at = Column(
+        TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow
+    )
     symbol = Column(Text, nullable=True)
     action = Column(SQLEnum(DecisionAction), nullable=False)
     rationale = Column(Text, nullable=False)
     confidence_score = Column(Numeric(5, 2), nullable=True)
     risk_check_result = Column(Text, nullable=True)
-    strategy_id = Column(UUID(as_uuid=True), ForeignKey('strategies.id'), nullable=True)
-    trade_idea_id = Column(UUID(as_uuid=True), ForeignKey('trade_ideas.id'), nullable=True)
+    strategy_id = Column(UUID(as_uuid=True), ForeignKey("strategies.id"), nullable=True)
+    trade_idea_id = Column(
+        UUID(as_uuid=True), ForeignKey("trade_ideas.id"), nullable=True
+    )
     snapshot_ref = Column(UUID(as_uuid=True), nullable=True)
     human_override = Column(Boolean, nullable=False, default=False)
 
@@ -229,24 +278,29 @@ class DecisionHistory(Base):
     trade_idea = relationship("TradeIdea", back_populates="decision_history")
 
     __table_args__ = (
-        Index('idx_decision_history_occurred', 'occurred_at'),
-        Index('idx_decision_history_symbol_occurred', 'symbol', 'occurred_at'),
-        Index('idx_decision_history_action_occurred', 'action', 'occurred_at'),
+        Index("idx_decision_history_occurred", "occurred_at"),
+        Index("idx_decision_history_symbol_occurred", "symbol", "occurred_at"),
+        Index("idx_decision_history_action_occurred", "action", "occurred_at"),
     )
 
 
 class User(Base):
     """User accounts for JWT authentication."""
+
     __tablename__ = "users"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
-    created_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow)
-    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    __table_args__ = (
-        Index('idx_users_email', 'email'),
+    created_at = Column(
+        TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow
+    )
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
 
+    __table_args__ = (Index("idx_users_email", "email"),)

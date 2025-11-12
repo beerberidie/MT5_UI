@@ -14,7 +14,12 @@ REQUIRED_FILES = [
 ]
 
 REQUIRED_IMPORTS = [
-    "fastapi", "uvicorn", "pydantic", "dotenv", "sse_starlette", "watchdog"
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "dotenv",
+    "sse_starlette",
+    "watchdog",
 ]
 
 
@@ -43,9 +48,22 @@ def check_config_files():
 
 
 def start_backend():
-    proc = subprocess.Popen([
-        sys.executable, "-m", "uvicorn", "backend.app:app", "--host", "127.0.0.1", "--port", "5001"
-    ], cwd=str(ROOT), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    proc = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "backend.app:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "5001",
+        ],
+        cwd=str(ROOT),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
     # Wait for startup
     t0 = time.time()
     ok = False
@@ -62,6 +80,7 @@ def start_backend():
 
 def http_get(url):
     import urllib.request
+
     with urllib.request.urlopen(url) as r:
         return r.getcode(), r.read().decode("utf-8")
 
@@ -91,4 +110,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

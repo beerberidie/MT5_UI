@@ -25,6 +25,7 @@ class ApiError(BaseModel):
 
 # === PHASE 1 MODELS: PENDING ORDERS ===
 
+
 class PendingOrderRequest(BaseModel):
     canonical: str = Field(..., description="Canonical symbol, e.g., EURUSD")
     order_type: Literal["buy_stop", "sell_stop", "buy_limit", "sell_limit"]
@@ -44,8 +45,8 @@ class PendingOrderModifyRequest(BaseModel):
     expiration: Optional[int] = None
 
 
-
 # === PHASE 1 MODELS: HISTORICAL DATA ===
+
 
 class HistoricalBarsRequest(BaseModel):
     symbol: str = Field(..., description="Symbol name")
@@ -63,6 +64,7 @@ class HistoricalTicksRequest(BaseModel):
 
 # === PHASE 1 MODELS: TRADING HISTORY ===
 
+
 class TradingHistoryRequest(BaseModel):
     date_from: str = Field(..., description="Start date in ISO format")
     date_to: str = Field(..., description="End date in ISO format")
@@ -71,8 +73,10 @@ class TradingHistoryRequest(BaseModel):
 
 # === AI TRADING MODELS ===
 
+
 class EMNRFlags(BaseModel):
     """EMNR condition evaluation flags."""
+
     entry: bool = False
     exit: bool = False
     strong: bool = False
@@ -81,6 +85,7 @@ class EMNRFlags(BaseModel):
 
 class IndicatorValues(BaseModel):
     """Technical indicator values."""
+
     ema_fast: Optional[float] = None
     ema_slow: Optional[float] = None
     rsi: Optional[float] = None
@@ -93,12 +98,14 @@ class IndicatorValues(BaseModel):
 
 class ExecutionPlan(BaseModel):
     """Trade execution plan from scheduler."""
+
     action: Literal["observe", "pending_only", "wait_rr", "open_or_scale"]
     riskPct: str = "0"
 
 
 class TradeIdea(BaseModel):
     """AI-generated trade idea."""
+
     id: str
     timestamp: str
     symbol: str
@@ -120,12 +127,14 @@ class TradeIdea(BaseModel):
 
 class EvaluateRequest(BaseModel):
     """Request to evaluate a symbol."""
+
     timeframe: Literal["M1", "M5", "M15", "M30", "H1", "H4", "D1"] = "H1"
     force: bool = False
 
 
 class EvaluateResponse(BaseModel):
     """Response from symbol evaluation."""
+
     trade_idea: Optional[TradeIdea] = None
     confidence: int
     action: str
@@ -134,6 +143,7 @@ class EvaluateResponse(BaseModel):
 
 class AIStatusResponse(BaseModel):
     """AI engine status."""
+
     enabled: bool
     mode: Literal["semi-auto", "full-auto"]
     enabled_symbols: list[str]
@@ -143,11 +153,12 @@ class AIStatusResponse(BaseModel):
 
 class EnableAIRequest(BaseModel):
     """Request to enable AI for a symbol."""
+
     timeframe: Literal["M1", "M5", "M15", "M30", "H1", "H4", "D1"] = "H1"
     auto_execute: bool = False
 
 
 class KillSwitchRequest(BaseModel):
     """Request to trigger kill switch."""
-    reason: str = "Manual kill switch activation"
 
+    reason: str = "Manual kill switch activation"

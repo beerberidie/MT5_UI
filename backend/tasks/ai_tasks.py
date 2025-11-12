@@ -26,20 +26,20 @@ logger = logging.getLogger(__name__)
 def evaluate_all_strategies(self):
     """
     Evaluate all enabled AI strategies for all enabled symbols.
-    
+
     This task:
     1. Gets list of enabled symbols from watchlist
     2. Loads AI strategies for each symbol
     3. Evaluates each strategy using current market data
     4. Generates trade ideas
     5. Stores results in CSV files
-    
+
     Returns:
         Dict with evaluation results and statistics
     """
     try:
         logger.info("Starting AI strategy evaluation task")
-        
+
         # Initialize storage and AI engine
         storage = FileStorage()
         mt5_client = MT5Client()
@@ -55,7 +55,7 @@ def evaluate_all_strategies(self):
             "symbols_evaluated": 0,
             "trade_ideas_generated": 0,
             "errors": [],
-            "evaluations": []
+            "evaluations": [],
         }
 
         # Evaluate each symbol
@@ -73,7 +73,7 @@ def evaluate_all_strategies(self):
 
                 # Evaluate symbol using AI engine
                 evaluation = ai_engine.evaluate(symbol)
-                
+
                 if evaluation:
                     results["symbols_evaluated"] += 1
 
@@ -81,12 +81,14 @@ def evaluate_all_strategies(self):
                     _store_trade_idea(storage, symbol, evaluation)
                     results["trade_ideas_generated"] += 1
 
-                    results["evaluations"].append({
-                        "symbol": symbol,
-                        "confidence": getattr(evaluation, "confidence", 0),
-                        "action": getattr(evaluation, "action", "observe"),
-                        "timestamp": datetime.utcnow().isoformat()
-                    })
+                    results["evaluations"].append(
+                        {
+                            "symbol": symbol,
+                            "confidence": getattr(evaluation, "confidence", 0),
+                            "action": getattr(evaluation, "action", "observe"),
+                            "timestamp": datetime.utcnow().isoformat(),
+                        }
+                    )
                 else:
                     logger.info(f"No trade idea generated for {symbol}")
 
@@ -96,15 +98,17 @@ def evaluate_all_strategies(self):
 
         # Shutdown MT5
         mt5_client.shutdown()
-        
+
         # Store evaluation results
         _store_evaluation_results(storage, results)
-        
-        logger.info(f"AI evaluation complete: {results['symbols_evaluated']} symbols, "
-                   f"{results['trade_ideas_generated']} trade ideas")
-        
+
+        logger.info(
+            f"AI evaluation complete: {results['symbols_evaluated']} symbols, "
+            f"{results['trade_ideas_generated']} trade ideas"
+        )
+
         return results
-        
+
     except Exception as e:
         logger.error(f"Error in evaluate_all_strategies task: {e}", exc_info=True)
         raise
@@ -114,16 +118,16 @@ def evaluate_all_strategies(self):
 def evaluate_single_symbol(self, symbol: str):
     """
     Evaluate a single symbol on-demand.
-    
+
     Args:
         symbol: Symbol to evaluate (e.g., "EURUSD")
-    
+
     Returns:
         Dict with evaluation results
     """
     try:
         logger.info(f"Evaluating single symbol: {symbol}")
-        
+
         # Initialize components
         storage = FileStorage()
         mt5_client = MT5Client()
@@ -136,7 +140,7 @@ def evaluate_single_symbol(self, symbol: str):
             return {
                 "success": False,
                 "error": f"MT5 initialization failed: {str(e)}",
-                "symbol": symbol
+                "symbol": symbol,
             }
 
         # Evaluate symbol
@@ -153,34 +157,30 @@ def evaluate_single_symbol(self, symbol: str):
             "success": True,
             "symbol": symbol,
             "evaluation": evaluation.__dict__ if evaluation else None,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
-        
+
     except Exception as e:
         logger.error(f"Error evaluating {symbol}: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "symbol": symbol
-        }
+        return {"success": False, "error": str(e), "symbol": symbol}
 
 
 @celery_app.task(name="backend.tasks.ai_tasks.backtest_strategy", bind=True)
 def backtest_strategy(self, symbol: str, strategy_name: str, days: int = 30):
     """
     Backtest a strategy on historical data.
-    
+
     Args:
         symbol: Symbol to backtest
         strategy_name: Name of strategy to test
         days: Number of days of historical data
-    
+
     Returns:
         Dict with backtest results
     """
     try:
         logger.info(f"Backtesting {strategy_name} on {symbol} for {days} days")
-        
+
         # Initialize components
         mt5_client = MT5Client()
 
@@ -188,34 +188,29 @@ def backtest_strategy(self, symbol: str, strategy_name: str, days: int = 30):
         try:
             mt5_client.init()
         except Exception as e:
-            return {
-                "success": False,
-                "error": f"MT5 initialization failed: {str(e)}"
-            }
+            return {"success": False, "error": f"MT5 initialization failed: {str(e)}"}
 
         # Get historical data
         # This is a placeholder - actual backtest logic would go here
 
         mt5_client.shutdown()
-        
+
         return {
             "success": True,
             "symbol": symbol,
             "strategy": strategy_name,
             "days": days,
             "message": "Backtest functionality coming soon",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
-        
+
     except Exception as e:
         logger.error(f"Error in backtest: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 # Helper functions
+
 
 def _store_trade_idea(storage: FileStorage, symbol: str, trade_idea: Any):
     """
@@ -236,7 +231,7 @@ def _store_trade_idea(storage: FileStorage, symbol: str, trade_idea: Any):
         filename = ideas_dir / f"{symbol}_{timestamp}.json"
 
         # Convert TradeIdea object to dict if needed
-        if hasattr(trade_idea, '__dict__'):
+        if hasattr(trade_idea, "__dict__"):
             trade_idea_dict = trade_idea.__dict__
         elif isinstance(trade_idea, dict):
             trade_idea_dict = trade_idea
@@ -248,11 +243,11 @@ def _store_trade_idea(storage: FileStorage, symbol: str, trade_idea: Any):
             "symbol": symbol,
             "timestamp": datetime.utcnow().isoformat(),
             "source": "celery_task",
-            **trade_idea_dict
+            **trade_idea_dict,
         }
 
         # Write to file
-        with open(filename, 'w') as f:
+        with open(filename, "w") as f:
             json.dump(trade_idea_with_meta, f, indent=2, default=str)
 
         logger.info(f"Stored trade idea: {filename}")
@@ -264,7 +259,7 @@ def _store_trade_idea(storage: FileStorage, symbol: str, trade_idea: Any):
 def _store_evaluation_results(storage: FileStorage, results: Dict[str, Any]):
     """
     Store evaluation results in CSV file.
-    
+
     Args:
         storage: FileStorage instance
         results: Evaluation results
@@ -273,25 +268,24 @@ def _store_evaluation_results(storage: FileStorage, results: Dict[str, Any]):
         # Create evaluations directory if not exists
         eval_dir = Path("data/evaluations")
         eval_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Create filename with date
         date_str = datetime.utcnow().strftime("%Y%m%d")
         filename = eval_dir / f"evaluation_{date_str}.json"
-        
+
         # Append to daily file (or create new)
         daily_results = []
         if filename.exists():
-            with open(filename, 'r') as f:
+            with open(filename, "r") as f:
                 daily_results = json.load(f)
-        
+
         daily_results.append(results)
-        
+
         # Write back
-        with open(filename, 'w') as f:
+        with open(filename, "w") as f:
             json.dump(daily_results, f, indent=2)
-        
+
         logger.info(f"Stored evaluation results: {filename}")
-        
+
     except Exception as e:
         logger.error(f"Error storing evaluation results: {e}", exc_info=True)
-

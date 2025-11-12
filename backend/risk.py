@@ -39,4 +39,3 @@ def sessions_map() -> dict[str, Tuple[str, str, str]]:
                 row.get("block_on_closed", "false"),
             )
     return out
-

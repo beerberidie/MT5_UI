@@ -1,9 +1,13 @@
 """apps/strategy/confidence.py — Confidence scoring"""
+
 from typing import Dict
 
 WEIGHTS = {"entry": 30, "strong": 25, "weak": -15, "exit": -40, "align": 10}
 
-def confidence_score(flags: Dict[str, bool], align_ok: bool, news_penalty: int = 0) -> int:
+
+def confidence_score(
+    flags: Dict[str, bool], align_ok: bool, news_penalty: int = 0
+) -> int:
     score = 0
     for k, w in WEIGHTS.items():
         if k in ("align",):
