@@ -18,8 +18,8 @@ exclude =
     ai_trading_system_modular_light_revision,
     INFO
 ignore =
-    E203,  # whitespace before ':'
-    E501,  # line too long (handled by black)
-    W503,  # line break before binary operator
-    W504   # line break after binary operator
+    E203,
+    E501,
+    W503,
+    W504
 
