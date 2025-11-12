@@ -1,5 +1,9 @@
 # MT5 Local Workstation (FastAPI + HTML/JS, CSV Storage)
 
+![CI/CD Pipeline](https://github.com/beerberidie/MT5_UI/workflows/CI/CD%20Pipeline/badge.svg)
+![Python](https://img.shields.io/badge/Python-3.9%20%7C%203.10%20%7C%203.11-blue)
+![License](https://img.shields.io/badge/License-MIT-green.svg)
+
 This is the first working version based on the provided blueprint.
 
 ## Prerequisites
