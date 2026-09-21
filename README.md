@@ -1,67 +1,34 @@
-# MT5 Local Workstation (FastAPI + HTML/JS, CSV Storage)
+# MT5 Local Workstation
 
-![CI/CD Pipeline](https://github.com/beerberidie/MT5_UI/workflows/CI/CD%20Pipeline/badge.svg)
-![Python](https://img.shields.io/badge/Python-3.9%20%7C%203.10%20%7C%203.11-blue)
-![License](https://img.shields.io/badge/License-MIT-green.svg)
+A local trading workstation for MetaTrader 5. A FastAPI backend talks to the MT5 terminal, a rule-based engine proposes trade ideas, and **nothing is executed until a human approves it.**
 
-This is the first working version based on the provided blueprint.
+> Scope, stated plainly: the "AI" here is a rule-based signal engine (indicators plus confidence scoring). There is no machine-learning model in this repo.
 
-## Prerequisites
-- Windows 10/11
-- MetaTrader 5 installed and logged-in (keep terminal open) — required for live account/positions and order placement
-- Python 3.11 (recommended for full compatibility) or 3.13 (works for API sans MT5/pandas)
+## What's in it
+- **MT5 bridge** (`backend/mt5_client.py`): account, positions and order placement through the MetaTrader5 Python package
+- **Signal engine** (`backend/ai/`): indicators, rule sets, per-symbol profiles, and confidence scoring that produce trade ideas
+- **Human approval** (`backend/trade_approval_routes.py`): approve, reject, or modify each idea before it reaches the broker
+- **Risk limits** (`backend/risk.py`): limits, symbol map and trading sessions loaded from config
+- **Background work** (`backend/celery_app.py`, `backend/tasks/`): Celery tasks for signal generation, data refresh and maintenance
+- **Storage:** CSV files for market data; trade ideas as JSON files; SQLAlchemy models with Alembic migrations
+- **Encryption service** for stored secrets (`backend/services/encryption_service.py`)
+- **Monitoring** middleware and routes; live updates over server-sent events
+- TypeScript web console
 
-## Quickstart (Python 3.13 minimal stack)
-This starts the API and frontend with modern FastAPI/Pydantic versions (no pandas). MT5 features require the MetaTrader5 wheel which may not support 3.13.
-```
-python -m venv .venv
-. .venv\Scripts\Activate.ps1
-pip install --upgrade pip
-pip install "fastapi>=0.115" pydantic>=2.9 uvicorn sse-starlette watchdog python-dotenv
+## Run it (Windows; the MT5 terminal must be installed and logged in)
+```powershell
+py -3.11 -m venv .venv; .\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
 Copy-Item .env.example .env
-uvicorn backend.app:app --host 127.0.0.1 --port 5001 --reload
-```
-Frontend (in a second terminal):
-```
-. .venv\Scripts\Activate.ps1
-python -m http.server 3000 -d frontend
-```
-Open http://127.0.0.1:3000
-
-## Full environment per blueprint (Python 3.11)
-If you need pandas and the MetaTrader5 Python bridge, use Python 3.11.
-```
-py -3.11 -m venv .venv
-. .venv\Scripts\Activate.ps1
-pip install --upgrade pip
-pip install fastapi==0.111.0 uvicorn==0.30.1 pydantic==2.7.4 python-dotenv==1.0.1 pandas==2.2.2 MetaTrader5==5.0.45 sse-starlette==1.6.5 watchdog==4.0.1
-Copy-Item .env.example .env
-uvicorn backend.app:app --host 127.0.0.1 --port 5001 --reload
+alembic upgrade head
+uvicorn backend.app:app --host 127.0.0.1 --port 5001
 ```
 
-## Basic API checks
+## Tests
+```bash
+pytest -q
 ```
-# Health
-Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5001/api/health | Select-Object -ExpandProperty Content
-# Symbols
-Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5001/api/symbols | Select-Object -ExpandProperty Content
-```
+151 test functions; CI runs lint and tests on Python 3.9, 3.10 and 3.11.
 
-## Running tests
-- Create/activate the 3.11 venv (.venv311) if not already active
-- Install dev deps: pip install -r requirements-dev.txt
-- Run unit tests: pytest -q
-- Run smoke test: python scripts/smoke_test.py
-
-What the tests cover:
-- CSV IO (append_csv/read_csv_rows)
-- Risk & sessions CSV parsing
-- API endpoints with a mocked MT5 client (no live terminal required)
-- CORS preflight behavior
-- Smoke test starts uvicorn, checks health, and validates config files and imports
-
-## Notes
-- All data and logs are stored under `./data` and `./logs` in CSV.
-- `config/` contains CSVs to define symbol aliases, sessions, and risk limits.
-- Order placement requires the MT5 terminal to be running and the `MetaTrader5` Python package installed in the venv.
-
+## Not financial advice
+This is a personal engineering project. It makes no claim about trading performance.
